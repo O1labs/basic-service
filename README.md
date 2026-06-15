@@ -4,7 +4,7 @@
 
 # Basic-Service
 [![Galaxy Role](https://img.shields.io/ansible/role/d/0x0i/basic_service)](https://galaxy.ansible.com/ui/standalone/roles/0x0i/basic_service/)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/O1labs/basic-service?color=yellow)
+[![GitHub release (latest)](https://badgen.net/github/release/O1labs/basic-service)](https://github.com/O1labs/basic-service/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 Configure and operate a basic cloud-native service: running anything from crypto blockchain clients to the immense app store of open-source ([Apache](https://projects.apache.org/projects.html), [CNCF](https://landscape.cncf.io/?group=projects-and-products&view-mode=grid) and beyond) services.
