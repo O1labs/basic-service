@@ -3,8 +3,7 @@
 <p><img src="https://code.benco.io/icon-collection/logos/ansible.svg" alt="ansible logo" title="ansible" align="left" height="60" /></p>
 
 # Basic-Service
-[![Galaxy Role](https://img.shields.io/ansible/role/d/0x0i/basic_service
-)](https://galaxy.ansible.com/ui/standalone/roles/0x0i/basic_service/)
+[![Galaxy Role](https://img.shields.io/ansible/role/d/0x0i/basic_service)](https://galaxy.ansible.com/ui/standalone/roles/0x0i/basic_service/)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/O1labs/basic-service?color=yellow)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
