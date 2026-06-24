@@ -93,11 +93,11 @@ See [requirements.yml](./requirements.yml) for the full list (includes `ansible-
 
 ## Example Playbook
 
-One variable schema deploys to Docker, systemd, Kubernetes, or bare-binary install — swap `setup_mode` and keep `config`, `ports`, `data_dirs`, and resource limits. The role derives volume mounts, port mappings, iptables rules, systemd unit properties, and Helm values from those dicts so you avoid repeating `copy`, `get_url`, `docker_container`, and unit-file tasks in every playbook.
+One schema for `container`, `systemd`, `k8s`, and `install` — swap `setup_mode`; the role derives mounts, ports, firewall rules, unit files, and Helm values from shared dicts.
 
-*All examples below are exercised in Molecule CI — see [tests/molecule/](./tests/molecule/).*
+*Molecule CI: [tests/molecule/](./tests/molecule/).*
 
-### Quick start — container
+### Container
 
 ```yaml
 - name: Serve nginx
@@ -118,116 +118,73 @@ One variable schema deploys to Docker, systemd, Kubernetes, or bare-binary insta
             servicePort: 80
 ```
 
-### Full-featured systemd — Prometheus from a release tarball
+### Prometheus — systemd or k8s
 
-Binary download, dedicated service user, inline config, environment, persistent data, firewall rules, and cgroup accounting — in one role block. The role auto-derives bind mounts, iptables ACCEPT rules, and a `systemd` unit with `CPUQuota`, `MemoryHigh`, and resource accounting.
+YAML anchor shares `config` and `ports` across plays; override `setup_mode` and runtime-specific vars. For k8s, set `KUBECONFIG` / `KUBE_CONTEXT` ([Kubernetes variables](#kubernetes-k8s)).
 
 ```yaml
-- name: Prometheus monitoring node
+- name: Prometheus on systemd
   hosts: monitoring
   become: true
+  vars:
+    prometheus: &prometheus
+      name: prometheus
+      memory: 512M
+      ports:
+        prometheus: { ingressPort: 9090, servicePort: 9090 }
+      config:
+        prometheus.yml:
+          destinationPath: /etc/prometheus/prometheus.yml
+          data: |
+            global:
+              scrape_interval: 15s
+            scrape_configs:
+              - job_name: prometheus
+                static_configs:
+                  - targets: ["localhost:9090"]
   roles:
     - role: basic-service
       vars:
+        <<: *prometheus
         setup_mode: systemd
-        name: prometheus
         user: prometheus
+        cpus: 50
         binary_url: https://github.com/prometheus/prometheus/releases/download/v2.47.0/prometheus-2.47.0.linux-amd64.tar.gz
         binary_strip_components: 1
         binary_file_name_override: prometheus
-        destination_directory: /usr/local/bin
         command: >
           /usr/local/bin/prometheus
           --config.file=/var/lib/prometheus/etc/prometheus/prometheus.yml
           --storage.tsdb.path=/var/lib/prometheus/data
-        cpus: 50
-        memory: 512M
         host_data_dir: /var/lib/prometheus
-        config:
-          prometheus.yml:
-            destinationPath: /etc/prometheus/prometheus.yml
-            data: |
-              global:
-                scrape_interval: 15s
-              scrape_configs:
-                - job_name: prometheus
-                  static_configs:
-                    - targets: ["localhost:9090"]
-        config_env:
-          PROMETHEUS_STORAGE_PATH: /var/lib/prometheus/data
         data_dirs:
           prometheus_data:
             hostPath: /var/lib/prometheus/data
             appPath: /var/lib/prometheus/data
-        ports:
-          prometheus:
-            ingressPort: 9090
-            servicePort: 9090
         setup_iptables: true
         systemd:
           enable_accounting: true
-```
 
-### Kubernetes — same vars, different runtime
-
-Set `KUBECONFIG` and `KUBE_CONTEXT` (see [Kubernetes variables](#kubernetes-k8s) above), then reuse the same `ports`, `cpus`, and `memory` shape. The role parses `command` into Helm `command`/`args` and converts resources into k8s requests/limits.
-
-```yaml
 - name: Prometheus on Kubernetes
   hosts: localhost
   connection: local
   roles:
     - role: basic-service
       vars:
+        <<: *prometheus
         setup_mode: k8s
-        name: prometheus
         image: prom/prometheus:v2.47.0
         helm_namespace: monitoring
+        cpus: 0.5
         command: >
           --config.file=/etc/prometheus/prometheus.yml
           --storage.tsdb.path=/prometheus
-        cpus: 0.5
-        memory: 512M
-        ports:
-          prometheus:
-            ingressPort: 9090
-            servicePort: 9090
-        config:
-          prometheus.yml:
-            destinationPath: /etc/prometheus/prometheus.yml
-            data: |
-              global:
-                scrape_interval: 15s
         k8s_health_check_path: /-/healthy
 ```
 
-To DRY a service across modes, use a YAML anchor and override only the runtime:
+### Ethereum (Sepolia)
 
-```yaml
-vars:
-  _prometheus: &prometheus
-    name: prometheus
-    command: --config.file=/etc/prometheus/prometheus.yml
-    cpus: 0.5
-    memory: 512M
-    ports:
-      prometheus: { ingressPort: 9090, servicePort: 9090 }
-roles:
-  - role: basic-service
-    vars:
-      <<: *prometheus
-      setup_mode: container
-      image: prom/prometheus:v2.47.0
-  - role: basic-service
-    vars:
-      <<: *prometheus
-      setup_mode: k8s
-      helm_namespace: monitoring
-```
-
-### Ethereum Sepolia stack — execution + consensus clients
-
-Play-level `vars` and `hostvars` wire Reth and Lighthouse on one host without hardcoded paths. `data_dirs` persists chain state; `ports` exposes RPC and metrics.
+Reth + Lighthouse on one host; play `vars` share `jwt_path` and data roots.
 
 ```yaml
 - name: Ethereum Sepolia stack
@@ -292,9 +249,9 @@ Play-level `vars` and `hostvars` wire Reth and Lighthouse on one host without ha
             servicePort: 9002
 ```
 
-### Install and uninstall lifecycle
+### Install / uninstall
 
-`setup_mode: install` downloads a binary without starting a service. Re-run with `uninstall: true` to tear down binaries, configs, data directories, containers, Helm releases, and iptables rules via handlers.
+Download a binary with `setup_mode: install`; re-run with `uninstall: true` to remove artifacts.
 
 ```yaml
 - name: Install jq CLI
