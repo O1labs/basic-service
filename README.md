@@ -93,130 +93,55 @@ See [requirements.yml](./requirements.yml) for the full list (includes `ansible-
 
 ## Example Playbook
 
-- Launch a Wireguard client which establishes a secure peer tunnel connection:
+One variable schema deploys to Docker, systemd, Kubernetes, or bare-binary install — swap `setup_mode` and keep `config`, `ports`, `data_dirs`, and resource limits. The role derives volume mounts, port mappings, iptables rules, systemd unit properties, and Helm values from those dicts so you avoid repeating `copy`, `get_url`, `docker_container`, and unit-file tasks in every playbook.
+
+*All examples below are exercised in Molecule CI — see [tests/molecule/](./tests/molecule/).*
+
+### Quick start — container
 
 ```yaml
-- name: Configure WireGuard VPN
-  hosts: VPNServers
-  remote_user: devops
-  become: true
-  roles:
-    - role: basic-service
-      vars:
-        setup_mode: systemd
-        name: wireguard
-        user: wireguard
-        binary_url: https://git.zx2c4.com/wireguard-tools/snapshot/wireguard-tools-1.0.20210424.tar.xz
-        binary_file_name_override: wireguard
-        command: >
-          /usr/local/bin/wg-quick up wg0
-        cpus: 50
-        memory: 1G
-        config:
-          wg0.conf:
-            destinationPath: /etc/wireguard/wg0.conf
-            data: |
-              [Interface]
-              PrivateKey = <Your-Private-Key>
-              Address = 10.0.0.1/24
-              ListenPort = 51820
-
-              [Peer]
-              PublicKey = <Peer-Public-Key>
-              Endpoint = <Peer-Public-IP>:51820
-              AllowedIPs = 10.0.0.2/32
-        ports:
-          wireguard:
-            ingressPort: 51820
-            servicePort: 51820
-        systemd:
-          enable_accounting: true
-          service_properties:
-            ExecStop: /usr/local/bin/wg-quick down wg0
-            Restart: on-failure
-```
-
-- Provision an Ethereum execution and consensus client connected to the Sepolia testnet and monitor with the XATU service
-
-```yaml
-- name: Configure Ethereum execution layer clients
-  hosts: EthereumSepolia
-  become: true
-  roles:
-    - role: basic-service
-      vars:
-        setup_mode: systemd
-        name: reth
-        user: ubuntu
-        binary_url: https://github.com/paradigmxyz/reth/releases/download/v1.1.4/reth-v1.1.4-x86_64-unknown-linux-gnu.tar.gz
-        binary_file_name_override: reth
-        command: >
-          /usr/local/bin/reth node --full --chain=sepolia --http --http.addr 0.0.0.0 --http.api "admin,debug,eth,net,txpool,web3,rpc,reth,ots,flashbots,miner" --metrics 0.0.0.0:8085
-        cpus: 50
-        memory: 5G
-        config:
-          reth.toml:
-            destinationPath: /home/ubuntu/reth.toml
-            data: |
-              # add configuration values
-
-- name: Configure Ethereum consensus layer clients
-  hosts: EthereumSepolia
-  become: true
-  roles:
-    - role: basic-service
-      vars:
-        setup_mode: systemd
-        name: lighthouse
-        user: ubuntu
-        binary_url: https://github.com/sigp/lighthouse/releases/download/v6.0.0/lighthouse-v6.0.0-x86_64-unknown-linux-gnu.tar.gz
-        binary_file_name_override: lighthouse
-        command: >
-          lighthouse bn --network sepolia --checkpoint-sync-url https://checkpoint-sync.sepolia.ethpandaops.io/
-          --execution-endpoint http://localhost:8551 --execution-jwt /home/ahmad/.local/share/reth/sepolia/jwt.hex
-          --http --http-address 0.0.0.0
-          --metrics --metrics-address 0.0.0.0 --metrics-port 8086
-        cpus: 50
-        memory: 5G
-
-- name: Configure XATU server for analytics
-  hosts: EthereumSepolia
+- name: Serve nginx
+  hosts: web
   become: true
   roles:
     - role: basic-service
       vars:
         setup_mode: container
-        name: xatu-server
-        image: ethpandaops/xatu:latest
-        command: sentry --preset ethpandaops --beacon-node-url=http://localhost:5052 --output-authorization="Basic <redacted>"
+        name: nginx
+        image: nginx:latest
+        command: nginx -g "daemon off;"
         cpus: 0.5
-        memory: 5g
-        network_mode: host
+        memory: 128M
+        ports:
+          http:
+            ingressPort: 8080
+            servicePort: 80
 ```
 
-- Run a downloaded binary inside a container (e.g. Prometheus from a release archive):
+### Full-featured systemd — Prometheus from a release tarball
+
+Binary download, dedicated service user, inline config, environment, persistent data, firewall rules, and cgroup accounting — in one role block. The role auto-derives bind mounts, iptables ACCEPT rules, and a `systemd` unit with `CPUQuota`, `MemoryHigh`, and resource accounting.
 
 ```yaml
-- name: Configure Prometheus in a container
-  hosts: Monitoring
+- name: Prometheus monitoring node
+  hosts: monitoring
   become: true
   roles:
     - role: basic-service
       vars:
-        setup_mode: container
+        setup_mode: systemd
         name: prometheus
-        image: debian:bookworm-slim
+        user: prometheus
         binary_url: https://github.com/prometheus/prometheus/releases/download/v2.47.0/prometheus-2.47.0.linux-amd64.tar.gz
         binary_strip_components: 1
         binary_file_name_override: prometheus
         destination_directory: /usr/local/bin
         command: >
-          /usr/local/bin/prometheus --config.file=/etc/prometheus/prometheus.yml
-          --storage.tsdb.path=/prometheus --web.listen-address=0.0.0.0:9090
-        ports:
-          prometheus:
-            ingressPort: 9090
-            servicePort: 9090
+          /usr/local/bin/prometheus
+          --config.file=/var/lib/prometheus/etc/prometheus/prometheus.yml
+          --storage.tsdb.path=/var/lib/prometheus/data
+        cpus: 50
+        memory: 512M
         host_data_dir: /var/lib/prometheus
         config:
           prometheus.yml:
@@ -224,26 +149,176 @@ See [requirements.yml](./requirements.yml) for the full list (includes `ansible-
             data: |
               global:
                 scrape_interval: 15s
+              scrape_configs:
+                - job_name: prometheus
+                  static_configs:
+                    - targets: ["localhost:9090"]
+        config_env:
+          PROMETHEUS_STORAGE_PATH: /var/lib/prometheus/data
         data_dirs:
-          prometheus-data:
+          prometheus_data:
             hostPath: /var/lib/prometheus/data
-            appPath: /prometheus
+            appPath: /var/lib/prometheus/data
+        ports:
+          prometheus:
+            ingressPort: 9090
+            servicePort: 9090
+        setup_iptables: true
+        systemd:
+          enable_accounting: true
 ```
 
-- Install a tool (e.g. `curl`):
+### Kubernetes — same vars, different runtime
+
+Set `KUBECONFIG` and `KUBE_CONTEXT` (see [Kubernetes variables](#kubernetes-k8s) above), then reuse the same `ports`, `cpus`, and `memory` shape. The role parses `command` into Helm `command`/`args` and converts resources into k8s requests/limits.
 
 ```yaml
-- name: Install curl tool
+- name: Prometheus on Kubernetes
+  hosts: localhost
+  connection: local
+  roles:
+    - role: basic-service
+      vars:
+        setup_mode: k8s
+        name: prometheus
+        image: prom/prometheus:v2.47.0
+        helm_namespace: monitoring
+        command: >
+          --config.file=/etc/prometheus/prometheus.yml
+          --storage.tsdb.path=/prometheus
+        cpus: 0.5
+        memory: 512M
+        ports:
+          prometheus:
+            ingressPort: 9090
+            servicePort: 9090
+        config:
+          prometheus.yml:
+            destinationPath: /etc/prometheus/prometheus.yml
+            data: |
+              global:
+                scrape_interval: 15s
+        k8s_health_check_path: /-/healthy
+```
+
+To DRY a service across modes, use a YAML anchor and override only the runtime:
+
+```yaml
+vars:
+  _prometheus: &prometheus
+    name: prometheus
+    command: --config.file=/etc/prometheus/prometheus.yml
+    cpus: 0.5
+    memory: 512M
+    ports:
+      prometheus: { ingressPort: 9090, servicePort: 9090 }
+roles:
+  - role: basic-service
+    vars:
+      <<: *prometheus
+      setup_mode: container
+      image: prom/prometheus:v2.47.0
+  - role: basic-service
+    vars:
+      <<: *prometheus
+      setup_mode: k8s
+      helm_namespace: monitoring
+```
+
+### Ethereum Sepolia stack — execution + consensus clients
+
+Play-level `vars` and `hostvars` wire Reth and Lighthouse on one host without hardcoded paths. `data_dirs` persists chain state; `ports` exposes RPC and metrics.
+
+```yaml
+- name: Ethereum Sepolia stack
+  hosts: sepolia_nodes
+  become: true
+  vars:
+    ethereum_network: sepolia
+    ethereum_data_root: /var/lib/ethereum
+    jwt_path: "{{ ethereum_data_root }}/jwt.hex"
+  roles:
+    - role: basic-service
+      vars:
+        setup_mode: systemd
+        name: reth
+        user: ethereum
+        host_data_dir: "{{ ethereum_data_root }}/reth"
+        binary_url: https://github.com/paradigmxyz/reth/releases/download/v1.1.4/reth-v1.1.4-x86_64-unknown-linux-gnu.tar.gz
+        binary_file_name_override: reth
+        command: >
+          /usr/local/bin/reth node --chain {{ ethereum_network }}
+          --datadir {{ ethereum_data_root }}/reth/data
+          --authrpc.jwtsecret {{ jwt_path }}
+          --http --http.addr 127.0.0.1 --http.port 8545
+          --metrics 0.0.0.0:9001
+        cpus: 80
+        memory: 8G
+        data_dirs:
+          chain:
+            hostPath: "{{ ethereum_data_root }}/reth/data"
+            appPath: "{{ ethereum_data_root }}/reth/data"
+        ports:
+          metrics:
+            ingressPort: 9001
+            servicePort: 9001
+
+    - role: basic-service
+      vars:
+        setup_mode: systemd
+        name: lighthouse
+        user: ethereum
+        host_data_dir: "{{ ethereum_data_root }}/lighthouse"
+        binary_url: https://github.com/sigp/lighthouse/releases/download/v6.0.0/lighthouse-v6.0.0-x86_64-unknown-linux-gnu.tar.gz
+        binary_file_name_override: lighthouse
+        command: >
+          /usr/local/bin/lighthouse bn
+          --network {{ ethereum_network }}
+          --datadir {{ ethereum_data_root }}/lighthouse/data
+          --checkpoint-sync-url https://checkpoint-sync.sepolia.ethpandaops.io
+          --execution-endpoint http://127.0.0.1:8551
+          --execution-jwt {{ jwt_path }}
+          --http --http-address 127.0.0.1 --http-port 5052
+          --metrics --metrics-address 0.0.0.0 --metrics-port 9002
+        cpus: 50
+        memory: 4G
+        data_dirs:
+          beacon:
+            hostPath: "{{ ethereum_data_root }}/lighthouse/data"
+            appPath: "{{ ethereum_data_root }}/lighthouse/data"
+        ports:
+          metrics:
+            ingressPort: 9002
+            servicePort: 9002
+```
+
+### Install and uninstall lifecycle
+
+`setup_mode: install` downloads a binary without starting a service. Re-run with `uninstall: true` to tear down binaries, configs, data directories, containers, Helm releases, and iptables rules via handlers.
+
+```yaml
+- name: Install jq CLI
   hosts: all
   become: true
   roles:
     - role: basic-service
       vars:
         setup_mode: install
-        name: curl
-        binary_url: https://github.com/moparisthebest/static-curl/releases/download/v8.12.1/curl-amd64
-        binary_strip_components: 1
-        binary_file_name_override: curl
+        name: jq
+        binary_url: https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+        binary_file_name_override: jq
+
+- name: Remove jq CLI
+  hosts: all
+  become: true
+  roles:
+    - role: basic-service
+      vars:
+        setup_mode: install
+        name: jq
+        binary_url: https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+        binary_file_name_override: jq
+        uninstall: true
 ```
 
 ## License
