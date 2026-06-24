@@ -93,157 +93,190 @@ See [requirements.yml](./requirements.yml) for the full list (includes `ansible-
 
 ## Example Playbook
 
-- Launch a Wireguard client which establishes a secure peer tunnel connection:
+One schema for `container`, `systemd`, `k8s`, and `install` — swap `setup_mode`; the role derives mounts, ports, firewall rules, unit files, and Helm values from shared dicts.
+
+*Molecule CI: [tests/molecule/](./tests/molecule/).*
+
+### Container
 
 ```yaml
-- name: Configure WireGuard VPN
-  hosts: VPNServers
-  remote_user: devops
-  become: true
-  roles:
-    - role: basic-service
-      vars:
-        setup_mode: systemd
-        name: wireguard
-        user: wireguard
-        binary_url: https://git.zx2c4.com/wireguard-tools/snapshot/wireguard-tools-1.0.20210424.tar.xz
-        binary_file_name_override: wireguard
-        command: >
-          /usr/local/bin/wg-quick up wg0
-        cpus: 50
-        memory: 1G
-        config:
-          wg0.conf:
-            destinationPath: /etc/wireguard/wg0.conf
-            data: |
-              [Interface]
-              PrivateKey = <Your-Private-Key>
-              Address = 10.0.0.1/24
-              ListenPort = 51820
-
-              [Peer]
-              PublicKey = <Peer-Public-Key>
-              Endpoint = <Peer-Public-IP>:51820
-              AllowedIPs = 10.0.0.2/32
-        ports:
-          wireguard:
-            ingressPort: 51820
-            servicePort: 51820
-        systemd:
-          enable_accounting: true
-          service_properties:
-            ExecStop: /usr/local/bin/wg-quick down wg0
-            Restart: on-failure
-```
-
-- Provision an Ethereum execution and consensus client connected to the Sepolia testnet and monitor with the XATU service
-
-```yaml
-- name: Configure Ethereum execution layer clients
-  hosts: EthereumSepolia
-  become: true
-  roles:
-    - role: basic-service
-      vars:
-        setup_mode: systemd
-        name: reth
-        user: ubuntu
-        binary_url: https://github.com/paradigmxyz/reth/releases/download/v1.1.4/reth-v1.1.4-x86_64-unknown-linux-gnu.tar.gz
-        binary_file_name_override: reth
-        command: >
-          /usr/local/bin/reth node --full --chain=sepolia --http --http.addr 0.0.0.0 --http.api "admin,debug,eth,net,txpool,web3,rpc,reth,ots,flashbots,miner" --metrics 0.0.0.0:8085
-        cpus: 50
-        memory: 5G
-        config:
-          reth.toml:
-            destinationPath: /home/ubuntu/reth.toml
-            data: |
-              # add configuration values
-
-- name: Configure Ethereum consensus layer clients
-  hosts: EthereumSepolia
-  become: true
-  roles:
-    - role: basic-service
-      vars:
-        setup_mode: systemd
-        name: lighthouse
-        user: ubuntu
-        binary_url: https://github.com/sigp/lighthouse/releases/download/v6.0.0/lighthouse-v6.0.0-x86_64-unknown-linux-gnu.tar.gz
-        binary_file_name_override: lighthouse
-        command: >
-          lighthouse bn --network sepolia --checkpoint-sync-url https://checkpoint-sync.sepolia.ethpandaops.io/
-          --execution-endpoint http://localhost:8551 --execution-jwt /home/ahmad/.local/share/reth/sepolia/jwt.hex
-          --http --http-address 0.0.0.0
-          --metrics --metrics-address 0.0.0.0 --metrics-port 8086
-        cpus: 50
-        memory: 5G
-
-- name: Configure XATU server for analytics
-  hosts: EthereumSepolia
+- name: Serve nginx
+  hosts: web
   become: true
   roles:
     - role: basic-service
       vars:
         setup_mode: container
-        name: xatu-server
-        image: ethpandaops/xatu:latest
-        command: sentry --preset ethpandaops --beacon-node-url=http://localhost:5052 --output-authorization="Basic <redacted>"
+        name: nginx
+        image: nginx:latest
+        command: nginx -g "daemon off;"
         cpus: 0.5
-        memory: 5g
-        network_mode: host
+        memory: 128M
+        ports:
+          http:
+            ingressPort: 8080
+            servicePort: 80
 ```
 
-- Run a downloaded binary inside a container (e.g. Prometheus from a release archive):
+### Prometheus — systemd or k8s
+
+Play `vars` and a YAML anchor share config across runtimes. For k8s, set `KUBECONFIG` / `KUBE_CONTEXT` ([Kubernetes variables](#kubernetes-k8s)).
 
 ```yaml
-- name: Configure Prometheus in a container
-  hosts: Monitoring
+- name: Prometheus on systemd
+  hosts: monitoring
   become: true
+  vars:
+    prometheus_root: /var/lib/prometheus
+    prometheus_data_dir: "{{ prometheus_root }}/data"
+    prometheus_config: /etc/prometheus/prometheus.yml
+    prometheus: &prometheus
+      name: prometheus
+      memory: 512M
+      ports:
+        prometheus: { ingressPort: 9090, servicePort: 9090 }
+      config:
+        prometheus.yml:
+          destinationPath: "{{ prometheus_config }}"
+          data: |
+            global:
+              scrape_interval: 15s
+            scrape_configs:
+              - job_name: prometheus
+                static_configs:
+                  - targets: ["localhost:9090"]
   roles:
     - role: basic-service
       vars:
-        setup_mode: container
-        name: prometheus
-        image: debian:bookworm-slim
+        <<: *prometheus
+        setup_mode: systemd
+        user: prometheus
+        cpus: 50
         binary_url: https://github.com/prometheus/prometheus/releases/download/v2.47.0/prometheus-2.47.0.linux-amd64.tar.gz
         binary_strip_components: 1
-        binary_file_name_override: prometheus
-        destination_directory: /usr/local/bin
+        binary_file_name_override: "{{ name }}"
         command: >
-          /usr/local/bin/prometheus --config.file=/etc/prometheus/prometheus.yml
-          --storage.tsdb.path=/prometheus --web.listen-address=0.0.0.0:9090
-        ports:
-          prometheus:
-            ingressPort: 9090
-            servicePort: 9090
-        host_data_dir: /var/lib/prometheus
-        config:
-          prometheus.yml:
-            destinationPath: /etc/prometheus/prometheus.yml
-            data: |
-              global:
-                scrape_interval: 15s
+          /usr/local/bin/{{ name }}
+          --config.file={{ prometheus_root }}{{ prometheus_config }}
+          --storage.tsdb.path={{ prometheus_data_dir }}
+        host_data_dir: "{{ prometheus_root }}"
         data_dirs:
-          prometheus-data:
-            hostPath: /var/lib/prometheus/data
-            appPath: /prometheus
+          prometheus_data:
+            hostPath: "{{ prometheus_data_dir }}"
+            appPath: "{{ prometheus_data_dir }}"
+        setup_iptables: true
+        systemd:
+          enable_accounting: true
+
+- name: Prometheus on Kubernetes
+  hosts: localhost
+  connection: local
+  roles:
+    - role: basic-service
+      vars:
+        <<: *prometheus
+        setup_mode: k8s
+        image: prom/prometheus:v2.47.0
+        helm_namespace: monitoring
+        cpus: 0.5
+        command: >
+          --config.file={{ prometheus_config }}
+          --storage.tsdb.path=/prometheus
+        k8s_health_check_path: /-/healthy
 ```
 
-- Install a tool (e.g. `curl`):
+### Ethereum (Sepolia)
+
+Play `vars` and a client anchor wire Reth + Lighthouse; per-role `name` drives paths and binary overrides.
 
 ```yaml
-- name: Install curl tool
+- name: Ethereum Sepolia stack
+  hosts: sepolia_nodes
+  become: true
+  vars:
+    ethereum_network: sepolia
+    ethereum_data_root: /var/lib/ethereum
+    jwt_path: "{{ ethereum_data_root }}/jwt.hex"
+    ethereum_client: &ethereum_client
+      setup_mode: systemd
+      user: ethereum
+  roles:
+    - role: basic-service
+      vars:
+        <<: *ethereum_client
+        name: reth
+        host_data_dir: "{{ ethereum_data_root }}/{{ name }}"
+        client_datadir: "{{ ethereum_data_root }}/{{ name }}/data"
+        binary_url: https://github.com/paradigmxyz/reth/releases/download/v1.1.4/reth-v1.1.4-x86_64-unknown-linux-gnu.tar.gz
+        binary_file_name_override: "{{ name }}"
+        command: >
+          /usr/local/bin/{{ name }} node --chain {{ ethereum_network }}
+          --datadir {{ client_datadir }}
+          --authrpc.jwtsecret {{ jwt_path }}
+          --http --http.addr 127.0.0.1 --http.port 8545
+          --metrics 0.0.0.0:9001
+        cpus: 80
+        memory: 8G
+        data_dirs:
+          chain:
+            hostPath: "{{ client_datadir }}"
+            appPath: "{{ client_datadir }}"
+        ports:
+          metrics: { ingressPort: 9001, servicePort: 9001 }
+
+    - role: basic-service
+      vars:
+        <<: *ethereum_client
+        name: lighthouse
+        host_data_dir: "{{ ethereum_data_root }}/{{ name }}"
+        client_datadir: "{{ ethereum_data_root }}/{{ name }}/data"
+        binary_url: https://github.com/sigp/lighthouse/releases/download/v6.0.0/lighthouse-v6.0.0-x86_64-unknown-linux-gnu.tar.gz
+        binary_file_name_override: "{{ name }}"
+        command: >
+          /usr/local/bin/{{ name }} bn --network {{ ethereum_network }}
+          --datadir {{ client_datadir }}
+          --checkpoint-sync-url https://checkpoint-sync.sepolia.ethpandaops.io
+          --execution-endpoint http://127.0.0.1:8551
+          --execution-jwt {{ jwt_path }}
+          --http --http-address 127.0.0.1 --http-port 5052
+          --metrics --metrics-address 0.0.0.0 --metrics-port 9002
+        cpus: 50
+        memory: 4G
+        data_dirs:
+          beacon:
+            hostPath: "{{ client_datadir }}"
+            appPath: "{{ client_datadir }}"
+        ports:
+          metrics: { ingressPort: 9002, servicePort: 9002 }
+```
+
+### Install / uninstall
+
+Anchor shared install vars; flip `uninstall` on the second play.
+
+```yaml
+- name: Install jq CLI
+  hosts: all
+  become: true
+  vars:
+    jq_tool: &jq_tool
+      setup_mode: install
+      name: jq
+      binary_url: https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+      binary_file_name_override: "{{ name }}"
+  roles:
+    - role: basic-service
+      vars:
+        <<: *jq_tool
+
+- name: Remove jq CLI
   hosts: all
   become: true
   roles:
     - role: basic-service
       vars:
-        setup_mode: install
-        name: curl
-        binary_url: https://github.com/moparisthebest/static-curl/releases/download/v8.12.1/curl-amd64
-        binary_strip_components: 1
-        binary_file_name_override: curl
+        <<: *jq_tool
+        uninstall: true
 ```
 
 ## License
