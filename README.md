@@ -187,8 +187,6 @@ Play `vars` and a YAML anchor share config across runtimes. For k8s, set `KUBECO
 
 ### Ethereum (Sepolia)
 
-Play `vars` and a client anchor wire Reth + Lighthouse; per-role `name` drives paths and binary overrides.
-
 ```yaml
 - name: Ethereum Sepolia stack
   hosts: sepolia_nodes
@@ -251,8 +249,6 @@ Play `vars` and a client anchor wire Reth + Lighthouse; per-role `name` drives p
 ```
 
 ### Install / uninstall
-
-Anchor shared install vars; flip `uninstall` on the second play.
 
 ```yaml
 - name: Install jq CLI
