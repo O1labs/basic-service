@@ -120,13 +120,16 @@ One schema for `container`, `systemd`, `k8s`, and `install` — swap `setup_mode
 
 ### Prometheus — systemd or k8s
 
-YAML anchor shares `config` and `ports` across plays; override `setup_mode` and runtime-specific vars. For k8s, set `KUBECONFIG` / `KUBE_CONTEXT` ([Kubernetes variables](#kubernetes-k8s)).
+Play `vars` and a YAML anchor share config across runtimes. For k8s, set `KUBECONFIG` / `KUBE_CONTEXT` ([Kubernetes variables](#kubernetes-k8s)).
 
 ```yaml
 - name: Prometheus on systemd
   hosts: monitoring
   become: true
   vars:
+    prometheus_root: /var/lib/prometheus
+    prometheus_data_dir: "{{ prometheus_root }}/data"
+    prometheus_config: /etc/prometheus/prometheus.yml
     prometheus: &prometheus
       name: prometheus
       memory: 512M
@@ -134,7 +137,7 @@ YAML anchor shares `config` and `ports` across plays; override `setup_mode` and 
         prometheus: { ingressPort: 9090, servicePort: 9090 }
       config:
         prometheus.yml:
-          destinationPath: /etc/prometheus/prometheus.yml
+          destinationPath: "{{ prometheus_config }}"
           data: |
             global:
               scrape_interval: 15s
@@ -151,16 +154,16 @@ YAML anchor shares `config` and `ports` across plays; override `setup_mode` and 
         cpus: 50
         binary_url: https://github.com/prometheus/prometheus/releases/download/v2.47.0/prometheus-2.47.0.linux-amd64.tar.gz
         binary_strip_components: 1
-        binary_file_name_override: prometheus
+        binary_file_name_override: "{{ name }}"
         command: >
-          /usr/local/bin/prometheus
-          --config.file=/var/lib/prometheus/etc/prometheus/prometheus.yml
-          --storage.tsdb.path=/var/lib/prometheus/data
-        host_data_dir: /var/lib/prometheus
+          /usr/local/bin/{{ name }}
+          --config.file={{ prometheus_root }}{{ prometheus_config }}
+          --storage.tsdb.path={{ prometheus_data_dir }}
+        host_data_dir: "{{ prometheus_root }}"
         data_dirs:
           prometheus_data:
-            hostPath: /var/lib/prometheus/data
-            appPath: /var/lib/prometheus/data
+            hostPath: "{{ prometheus_data_dir }}"
+            appPath: "{{ prometheus_data_dir }}"
         setup_iptables: true
         systemd:
           enable_accounting: true
@@ -177,14 +180,14 @@ YAML anchor shares `config` and `ports` across plays; override `setup_mode` and 
         helm_namespace: monitoring
         cpus: 0.5
         command: >
-          --config.file=/etc/prometheus/prometheus.yml
+          --config.file={{ prometheus_config }}
           --storage.tsdb.path=/prometheus
         k8s_health_check_path: /-/healthy
 ```
 
 ### Ethereum (Sepolia)
 
-Reth + Lighthouse on one host; play `vars` share `jwt_path` and data roots.
+Play `vars` and a client anchor wire Reth + Lighthouse; per-role `name` drives paths and binary overrides.
 
 ```yaml
 - name: Ethereum Sepolia stack
@@ -194,18 +197,21 @@ Reth + Lighthouse on one host; play `vars` share `jwt_path` and data roots.
     ethereum_network: sepolia
     ethereum_data_root: /var/lib/ethereum
     jwt_path: "{{ ethereum_data_root }}/jwt.hex"
+    ethereum_client: &ethereum_client
+      setup_mode: systemd
+      user: ethereum
   roles:
     - role: basic-service
       vars:
-        setup_mode: systemd
+        <<: *ethereum_client
         name: reth
-        user: ethereum
-        host_data_dir: "{{ ethereum_data_root }}/reth"
+        host_data_dir: "{{ ethereum_data_root }}/{{ name }}"
+        client_datadir: "{{ ethereum_data_root }}/{{ name }}/data"
         binary_url: https://github.com/paradigmxyz/reth/releases/download/v1.1.4/reth-v1.1.4-x86_64-unknown-linux-gnu.tar.gz
-        binary_file_name_override: reth
+        binary_file_name_override: "{{ name }}"
         command: >
-          /usr/local/bin/reth node --chain {{ ethereum_network }}
-          --datadir {{ ethereum_data_root }}/reth/data
+          /usr/local/bin/{{ name }} node --chain {{ ethereum_network }}
+          --datadir {{ client_datadir }}
           --authrpc.jwtsecret {{ jwt_path }}
           --http --http.addr 127.0.0.1 --http.port 8545
           --metrics 0.0.0.0:9001
@@ -213,25 +219,22 @@ Reth + Lighthouse on one host; play `vars` share `jwt_path` and data roots.
         memory: 8G
         data_dirs:
           chain:
-            hostPath: "{{ ethereum_data_root }}/reth/data"
-            appPath: "{{ ethereum_data_root }}/reth/data"
+            hostPath: "{{ client_datadir }}"
+            appPath: "{{ client_datadir }}"
         ports:
-          metrics:
-            ingressPort: 9001
-            servicePort: 9001
+          metrics: { ingressPort: 9001, servicePort: 9001 }
 
     - role: basic-service
       vars:
-        setup_mode: systemd
+        <<: *ethereum_client
         name: lighthouse
-        user: ethereum
-        host_data_dir: "{{ ethereum_data_root }}/lighthouse"
+        host_data_dir: "{{ ethereum_data_root }}/{{ name }}"
+        client_datadir: "{{ ethereum_data_root }}/{{ name }}/data"
         binary_url: https://github.com/sigp/lighthouse/releases/download/v6.0.0/lighthouse-v6.0.0-x86_64-unknown-linux-gnu.tar.gz
-        binary_file_name_override: lighthouse
+        binary_file_name_override: "{{ name }}"
         command: >
-          /usr/local/bin/lighthouse bn
-          --network {{ ethereum_network }}
-          --datadir {{ ethereum_data_root }}/lighthouse/data
+          /usr/local/bin/{{ name }} bn --network {{ ethereum_network }}
+          --datadir {{ client_datadir }}
           --checkpoint-sync-url https://checkpoint-sync.sepolia.ethpandaops.io
           --execution-endpoint http://127.0.0.1:8551
           --execution-jwt {{ jwt_path }}
@@ -241,29 +244,30 @@ Reth + Lighthouse on one host; play `vars` share `jwt_path` and data roots.
         memory: 4G
         data_dirs:
           beacon:
-            hostPath: "{{ ethereum_data_root }}/lighthouse/data"
-            appPath: "{{ ethereum_data_root }}/lighthouse/data"
+            hostPath: "{{ client_datadir }}"
+            appPath: "{{ client_datadir }}"
         ports:
-          metrics:
-            ingressPort: 9002
-            servicePort: 9002
+          metrics: { ingressPort: 9002, servicePort: 9002 }
 ```
 
 ### Install / uninstall
 
-Download a binary with `setup_mode: install`; re-run with `uninstall: true` to remove artifacts.
+Anchor shared install vars; flip `uninstall` on the second play.
 
 ```yaml
 - name: Install jq CLI
   hosts: all
   become: true
+  vars:
+    jq_tool: &jq_tool
+      setup_mode: install
+      name: jq
+      binary_url: https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+      binary_file_name_override: "{{ name }}"
   roles:
     - role: basic-service
       vars:
-        setup_mode: install
-        name: jq
-        binary_url: https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
-        binary_file_name_override: jq
+        <<: *jq_tool
 
 - name: Remove jq CLI
   hosts: all
@@ -271,10 +275,7 @@ Download a binary with `setup_mode: install`; re-run with `uninstall: true` to r
   roles:
     - role: basic-service
       vars:
-        setup_mode: install
-        name: jq
-        binary_url: https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
-        binary_file_name_override: jq
+        <<: *jq_tool
         uninstall: true
 ```
 
