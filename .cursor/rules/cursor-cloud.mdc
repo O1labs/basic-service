@@ -1,0 +1,37 @@
+---
+description: Ansible Galaxy basic_service role — Cursor Cloud VM setup, lint, Molecule, and Helm validation
+alwaysApply: false
+---
+
+# basic-service — Cursor Cloud
+
+Ansible Galaxy role **`basic_service`** + Helm chart. Dev workflow: lint and Molecule (`.github/workflows/CI.yaml`).
+
+## VM setup (one-time)
+
+1. Docker CE + `fuse-overlayfs`; keep `dockerd` running
+2. `sudo chmod 666 /var/run/docker.sock`
+3. `sudo ln -sfn /workspace /basic-service` (Molecule role path)
+4. `sudo apt-get install -y rsync`
+5. Root pip: `sudo pip install --break-system-packages 'requests==2.31.0' 'urllib3<2' 'docker>=6,<7'`
+
+## Lint
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+yamllint --config-file ./tests/yaml-lint.yml .
+ansible-lint --config-file ./tests/ansible-lint.yml .
+./tests/helm-validate.sh
+```
+
+## Molecule
+
+```bash
+cd tests && molecule test -s container-basic
+```
+
+CI scenarios: `systemd-basic`, `container-basic`, `container-binary-service`, `k8s-basic`, etc.
+
+## cgroup caveat
+
+Cloud VMs on cgroup v2 may need `cgroupns_mode: host` for container scenarios.
