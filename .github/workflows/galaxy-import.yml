@@ -1,0 +1,30 @@
+name: Galaxy Import
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install ansible-core
+        run: pip install ansible-core
+
+      - name: Import role to Ansible Galaxy
+        env:
+          GALAXY_API_KEY: ${{ secrets.GALAXY_API_KEY }}
+        run: |
+          if [ -z "$GALAXY_API_KEY" ]; then
+            echo "GALAXY_API_KEY secret is not set" >&2
+            exit 1
+          fi
+          # Hardcode legacy github_user so FQN stays 0x0i.basic_service
+          ansible-galaxy role import 0x0I basic-service --token "$GALAXY_API_KEY"
