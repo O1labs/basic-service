@@ -1,9 +1,14 @@
 name: Galaxy Import
 
 on:
+  # Manual tags pushed outside Actions
   push:
     tags:
       - "v*"
+  # semantic-release creates GitHub Releases with GITHUB_TOKEN; that does not
+  # re-trigger tag-push workflows, so listen for the release event too.
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -11,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.x"
 
@@ -27,4 +32,6 @@ jobs:
             exit 1
           fi
           # Hardcode legacy github_user so FQN stays 0x0i.basic_service
+          # Do not set galaxy_info.namespace in meta (0x0i is not lint-valid;
+          # omitting namespace lets Galaxy keep the existing listing).
           ansible-galaxy role import 0x0I basic-service --token "$GALAXY_API_KEY"
