@@ -7,3 +7,6 @@ exclude_paths:
   - ./*
 warn_list:
   - experimental
+  # Galaxy FQN is 0x0i.basic_service; meta cannot declare that namespace
+  # (namespaces must start with a letter) without breaking Galaxy import.
+  - role-name
