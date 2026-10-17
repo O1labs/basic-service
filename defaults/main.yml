@@ -65,15 +65,10 @@ uninstall: false
 
 ### Container ###
 image:
-# bridge | host | none | container:<name> | <network-name>
-# host: published ports are skipped (the container shares the host stack).
+# bridge | host | none | container:<name> | <network>; ports are not published for host/none/container:
 network_mode: bridge
-# Extra user-defined networks to attach, e.g. ['o1_o1-network']
-networks: []
-# Linux capabilities to add, e.g. ['NET_ADMIN', 'NET_RAW']
+# e.g. [NET_ADMIN, NET_RAW]
 capabilities: []
-# Host devices to map, e.g. ['/dev/ttyUSB0:/dev/ttyUSB0']
-devices: []
 # binary_app_path: /usr/local/bin
 _volume_list: []
 _port_list: []

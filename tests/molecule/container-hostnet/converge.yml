@@ -5,7 +5,7 @@
   vars:
     ansible_user: root
   roles:
-    # Host networking + extra capabilities; ports must not be published.
+    # ports is set to prove it is not published in host mode.
     - role: basic-service
       vars:
         setup_mode: container
