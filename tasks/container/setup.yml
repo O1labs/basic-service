@@ -3,6 +3,15 @@
   ansible.builtin.include_tasks: ../common/download-binary.yml
   when: binary_url | default('', true) | length > 0
 
+- name: Resolve extra container networks
+  ansible.builtin.set_fact:
+    _container_networks: >-
+      {{
+        []
+        if network_mode == 'host'
+        else networks | default([]) | map('community.general.dict_kv', 'name') | list
+      }}
+
 - name: Start service container
   community.docker.docker_container: >-
     {{
@@ -11,7 +20,6 @@
         'image': image,
         'user': 'root',
         'env': config_env,
-        'published_ports': _port_list,
         'network_mode': network_mode,
         'volumes': _volume_list,
         'cpus': cpus,
@@ -19,4 +27,8 @@
         'restart_policy': restart_policy,
       }
       | combine({'command': command} if command is defined and command | length > 0 else {})
+      | combine({'published_ports': _port_list} if network_mode not in ['host'] else {})
+      | combine({'networks': _container_networks} if _container_networks | length > 0 else {})
+      | combine({'capabilities': capabilities} if capabilities | default([]) | length > 0 else {})
+      | combine({'devices': devices} if devices | default([]) | length > 0 else {})
     }}
