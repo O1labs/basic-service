@@ -17,7 +17,7 @@
         'memory': memory,
         'restart_policy': restart_policy,
       }
-      | combine({'command': command} if command is defined and command | length > 0 else {})
+      | combine({'command': command} if command | default('', true) | length > 0 else {})
       | combine({} if network_mode in ['host', 'none'] or network_mode is match('container:') else {'published_ports': _port_list})
       | combine({'capabilities': capabilities} if capabilities | length > 0 else {})
     }}
