@@ -35,6 +35,7 @@ jobs:
           - container-binary
           - container-binary-service
           - container-full
+          - container-hostnet
           - container-uninstall
           - install-basic
           - install-uninstall

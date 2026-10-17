@@ -1,0 +1,35 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: instance
+    image: docker:24.0.5-dind
+    privileged: true
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ../prepare-docker.yml
+  env:
+    ANSIBLE_ROLES_PATH: "../../../../"
+    ANSIBLE_ALLOW_BROKEN_CONDITIONALS: "True"
+verifier:
+  name: testinfra
+  directory: ./tests
+scenario:
+  name: container-hostnet
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - cleanup
+    - destroy

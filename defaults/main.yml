@@ -65,7 +65,10 @@ uninstall: false
 
 ### Container ###
 image:
+# bridge | host | none | container:<name> | <network>; ports are not published for host/none/container:
 network_mode: bridge
+# e.g. [NET_ADMIN, NET_RAW]
+capabilities: []
 # binary_app_path: /usr/local/bin
 _volume_list: []
 _port_list: []

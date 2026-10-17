@@ -1,0 +1,25 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+  roles:
+    # ports is set to prove it is not published in host mode.
+    - role: basic-service
+      vars:
+        setup_mode: container
+        name: hostnet-container
+        image: nginx:latest
+        command: nginx -g "daemon off;"
+        cpus: 0.5
+        memory: 128M
+        network_mode: host
+        capabilities:
+          - NET_ADMIN
+          - NET_RAW
+        ports:
+          http:
+            ingressPort: 8088
+            servicePort: 80
+        host_data_dir: /var/tmp

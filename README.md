@@ -39,7 +39,8 @@ Configure and operate a basic cloud-native service: running anything from web3 b
 |       var       |                        description                         |     default      |
 | :-------------: | :--------------------------------------------------------: | :--------------: |
 |     _image_     |             service container image to deploy              |    ` `    |
-|     _network_mode_     |             container network to attach ([more info](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_container_module.html#parameter-network_mode))              |    `bridge `    |
+|     _network_mode_     |             container network to attach ([more info](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_container_module.html#parameter-network_mode)); ports are not published for `host`, `none` or `container:<name>`              |    `bridge `    |
+|     _capabilities_     |             Linux capabilities to add, e.g. `NET_ADMIN`, `NET_RAW`              |    `[]`    |
 |     _binary_url_     |             URL of the binary file or archive to download and bind-mount into the container              |    ` `    |
 |     _binary_file_name_override_     |             Override the binary file name after moving it to the destination directory              |    ` `    |
 |    _binary_strip_components_     | Strip NUMBER leading components/directories from file names on extraction | `0` |
