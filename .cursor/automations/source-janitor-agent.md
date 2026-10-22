@@ -23,7 +23,7 @@ Sibling repos (`O1`, `agents`, `O1-infrastructure`, `O1-protocol`) have their ow
 
 | Trigger                                                   | Action                                                       |
 | --------------------------------------------------------- | ------------------------------------------------------------ |
-| PR from a `janitor/*` branch (this automation's own PRs)  | No-op: one-line note                                         |
+| PR whose description starts with `## Source Janitor Run` (this automation's own PRs) | No-op: one-line note              |
 | PR opened by Dependabot                                   | No-op: one-line note                                         |
 | PR, docs/markdown only, **no new tracked files**          | No-op: one-line note, no edits                               |
 | PR touches `defaults/`, `tasks/`, `templates/`, `helm/`   | Review for dead code, README drift, and new lint suppressions; comment only |
@@ -159,7 +159,7 @@ Checklist: no new failures versus baseline; no public variable or chart value re
 
 ### Phase 5 - Report and persist
 
-If you changed anything, open one PR from a `janitor/<short-topic>` branch against `main`; if a `janitor/*` PR is already open, push to it. If every finding is Class E, post the report and open no PR.
+If you changed anything, open one PR against `main` whose description is the report below. Its `## Source Janitor Run` heading is how janitor PRs are recognized; Cursor names automation branches `cursor/<slug>-<hash>`, so never rely on the branch name. If an open PR already starts with that heading, push to its branch instead. If every finding is Class E, post the report and open no PR.
 
 ```markdown
 ## Source Janitor Run - {date}
@@ -264,8 +264,9 @@ Update Memories: last run date and mode, removals, recurring drift, unresolved C
 
 | Setting    | Value                                                                    |
 | ---------- | ------------------------------------------------------------------------ |
-| Schedule   | Weekly, alternating full audit and backlog pass                          |
-| PR trigger | `O1labs/basic-service` pull requests; the Trigger Guard handles no-ops   |
-| Model      | Strong reasoning model; Ansible and Helm reference tracing               |
-| Tools      | Memories; open and comment on pull requests                              |
+| Managed by | Terraform in `O1-infrastructure/cursor`; edit this file, not the dashboard |
+| Schedule   | Weekly, Monday 16:30 UTC; alternating full audit and backlog pass        |
+| PR trigger | None yet; the Trigger Guard covers it if one is added                    |
+| Model      | GPT-5.5 High (`gpt-5.5-high`)                                            |
+| Tools      | Memories; opening pull requests                                          |
 | Slack      | Weekly summary; alert on secrets or validation failure                   |
