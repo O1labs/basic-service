@@ -95,10 +95,10 @@ Limits: replacement edits only (never triggers, permissions, secrets, the Molecu
 
 | Class | Meaning                                                                  | Action                         |
 | ----- | ------------------------------------------------------------------------ | ------------------------------ |
-| **A** | Dead internal code: task file, handler, template, or Helm template with proof | Delete                    |
+| **A** | Dead internal code: task file, handler, or role template, with proof     | Delete                         |
 | **C** | Artifact or secret                                                       | Delete/untrack + `.gitignore`  |
 | **D** | Consistency fix: README tables, stale lint suppressions, docs            | Fix                            |
-| **E** | Public variables and chart values, or ambiguous                          | Report only                    |
+| **E** | Public variables, chart values, and Helm templates, or ambiguous         | Report only                    |
 | **F** | Cosmetic                                                                 | Fix only in touched files      |
 
 **Prove before delete (Class A):** two independent signals, for example no `include_tasks`/`import_tasks`/`notify`/`template` reference **and** no use in any Molecule scenario or Helm template.
@@ -122,9 +122,9 @@ Limits: replacement edits only (never triggers, permissions, secrets, the Molecu
    | Ignored-but-tracked      | `git ls-files -ci --exclude-standard`                                                              |
    | Unused defaults          | Each key in `defaults/main.yml` vs `rg` over `tasks/`, `handlers/`, `templates/`, `helm/`, `tests/molecule/` (report only) |
    | README drift             | README variable tables (name and default) vs `defaults/main.yml`                                   |
-   | Dead task files          | Files under `tasks/` not reached from `tasks/main.yml` via `include_tasks`/`import_tasks`          |
+   | Dead task files          | Files under `tasks/` not reached from `tasks/main.yml` via `include_tasks`/`import_tasks`. `tasks/main.yml` includes `"{{ setup_mode }}/setup.yml"`, which reaches every `tasks/<mode>/setup.yml`, so a literal search misses them |
    | Dead handlers            | Handler names with no `notify` or `listen` match                                                   |
-   | Dead templates           | `templates/*` and `helm/templates/*` with no reference (Helm templates render by existing, so check `values.yaml` toggles instead) |
+   | Dead templates           | `templates/*` with no `template` task reference. `helm/templates/*` render by existing, often behind a `values.yaml` toggle; one no toggle can enable is reported, never deleted (published chart) |
    | Unused Helm values       | `helm/values.yaml` keys no template reads (report; chart values are public)                        |
    | Render drift             | `tests/fixtures/k8s-rendered-values.yaml` vs what `templates/k8s-values.yaml.j2` renders for the k8s scenario |
    | Stale lint suppressions  | Each `.ansible-lint-ignore` line: remove it, rerun `ansible-lint`, restore if the violation returns |
@@ -202,7 +202,7 @@ Update Memories: last run date and mode, removals, recurring drift, unresolved C
 
 ### In scope
 
-- `tasks/**`, `handlers/**`, `templates/**`, `helm/templates/**` dead code
+- `tasks/**`, `handlers/**`, `templates/**` dead code; `helm/templates/**` dead code (report only)
 - README and docs drift; `.ansible-lint-ignore`
 - Secrets and artifacts; `.gitignore`
 - Scripts in CI, replaced per **CI Scripts**
@@ -233,7 +233,8 @@ Update Memories: last run date and mode, removals, recurring drift, unresolved C
 | Default no task or template reads                   | Class E; propose deprecation                             |
 | README documents a variable missing from defaults   | Check tasks: required variable (fix table wording) or stale row (remove row) |
 | README default differs from `defaults/main.yml`     | Trust `defaults/main.yml`; fix the table                 |
-| Task file not reached from `tasks/main.yml`         | Class A with proof                                       |
+| Task file not reached from `tasks/main.yml`         | Class A with proof (resolve the `{{ setup_mode }}` include first) |
+| Helm template no values toggle can enable           | Class E (published chart)                                |
 | Handler never notified                              | Class A with proof                                       |
 | Lint suppression that no longer triggers            | Remove the line                                          |
 | New `.ansible-lint-ignore` line in a PR             | Flag; prefer fixing the violation                        |
