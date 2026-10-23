@@ -21,7 +21,10 @@ Ansible Galaxy role **`basic_service`** + Helm chart. Dev workflow: lint and Mol
 export PATH="$HOME/.local/bin:$PATH"
 yamllint --config-file ./tests/yaml-lint.yml .
 ansible-lint --config-file ./tests/ansible-lint.yml .
-./tests/helm-validate.sh
+helm lint helm
+helm template basic-service-ci helm -f helm/values.yaml >/dev/null
+helm template basic-service-ci helm -f helm/values-test.yaml >/dev/null
+helm template basic-service-ci helm -f tests/fixtures/k8s-rendered-values.yaml >/dev/null
 ```
 
 ## Molecule
