@@ -29,6 +29,7 @@ Configure and operate a basic cloud-native service: running anything from web3 b
 |     _ports_     |          listening port information for a service          |       `{}`       |
 |    _data_dirs_    |  directory mappings to store service runtime/operational data |      `{}`      |
 |  _host_data_dir_  |   host directory for general deployment operations    |    ``    |
+| _setup_iptables_ | manage INPUT iptables rules for configured ingress ports | `false` |
 |     _cpus_      |  CPU resources each deployed service can use (either percentage for systemd or cores for containers)   |      `100`       |
 |    _memory_     | available memory resources each deployed service can use |       `1G`       |
 | _restart_policy_ |                  service restart policy                  | `on-failure` |
@@ -57,6 +58,7 @@ Configure and operate a basic cloud-native service: running anything from web3 b
 |     _destination_directory_     |             directory where the binary file will be placed after downloading/extracting              |    `/usr/local/bin`    |
 |   _systemd_   |    custom service type & unit, service and install properties    |     `{}`      |
 |   _systemd.enable_accounting_   |    enable systemd resource accounting (CPU, Memory, IO, Tasks, IP)    |     `true`      |
+| _systemd_environment_directive_ | additional raw values for the systemd `Environment` directive | `""` |
 
 ### Kubernetes (k8s)
 
@@ -73,7 +75,23 @@ export KUBE_CONTEXT=<context-within-the-kubeconfig-to-use>
 |    _helm_values_path_     | optional Helm values overlay file merged after rendered role values |       `""`       |
 | _helm_render_values_from_role_ | map common role vars (`image`, `config`, `ports`, `cpus`, `memory`, etc.) into Helm values | `true` |
 | _helm_create_namespace_ | create the target namespace during Helm install | `true` |
-| _helm_wait_ / _helm_atomic_ / _helm_timeout_ | Helm install safety controls | `true` / `true` / `10m` |
+| _k8s_chart_create_namespace_ | render `createNamespace` into bundled chart values | `false` |
+| _helm_wait_ | wait for Helm resources to become ready | `true` |
+| _helm_atomic_ | roll back failed Helm installs/upgrades | `true` |
+| _helm_timeout_ | timeout for Helm operations | `10m` |
+| _k8s_common_name_ | rendered chart common name; defaults to the service name | `""` |
+| _k8s_cluster_name_ | rendered chart cluster name | `default-cluster` |
+| _k8s_min_replicas_ | rendered chart minimum replica count | `1` |
+| _k8s_max_replicas_ | rendered chart maximum replica count | `1` |
+| _k8s_hpa_enabled_ | enable the rendered chart HPA | `false` |
+| _k8s_hpa_target_cpu_ | target CPU utilization percentage for the rendered chart HPA | `50` |
+| _k8s_deploy_stateful_set_ | render the chart as a StatefulSet instead of a Deployment | `false` |
+| _k8s_ingress_enabled_ | enable rendered chart ingress values | `false` |
+| _k8s_service_monitor_enabled_ | enable rendered chart ServiceMonitor values | `false` |
+| _k8s_health_check_path_ | HTTP path for generated liveness/readiness probes | `/` |
+| _k8s_service_monitor_path_ | metrics path for the rendered ServiceMonitor | `/metrics` |
+| _k8s_labels_ | extra labels rendered into chart values | `{}` |
+| _k8s_annotations_ | extra annotations rendered into chart values | `{}` |
 
 With `setup_mode: k8s`, the role renders Helm values from the same variables used by `container`, `systemd`, and `install` modes, then deploys the bundled chart. Set `helm_render_values_from_role: false` to use only `helm_values_path`.
 
