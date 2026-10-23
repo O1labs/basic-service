@@ -55,7 +55,7 @@ Avoid scripts in CI where possible. Replace a script a workflow runs with a main
 
 The seed case is `tests/helm-validate.sh` (21 lines, `CI.yaml` lint job). It installs helm by piping unpinned `curl` from helm's `main` branch into `bash`, then runs `helm lint helm` and `helm template` against `helm/values.yaml`, `helm/values-test.yaml`, and `tests/fixtures/k8s-rendered-values.yaml`. Replace it with a pinned `azure/setup-helm` and inline `helm lint` and `helm template` steps, delete the script, and update `AGENTS.md` and `.cursor/rules/cursor-cloud.mdc`, which tell people to run it.
 
-Only replacement edits: never change triggers, permissions, secrets, the Molecule matrix, or the job graph. `release.yml` and `galaxy-import.yml` are report-only. The PR's own CI run is the validation; revert if it goes red. Flag any other unpinned `curl | sh`.
+Only replacement edits: never change triggers, permissions, secrets, the Molecule matrix, or the job graph. `release.yml` and `galaxy-import.yml` are report-only. The PR's own CI run is the validation; revert if it goes red. Flag any other unpinned `curl | sh`; in role tasks (`tasks/k8s/setup.yml`) and Molecule prepare playbooks that is role behavior, so report it only.
 
 ### Artifact Patterns
 
@@ -82,8 +82,8 @@ Only replacement edits: never change triggers, permissions, secrets, the Molecul
 
 ### Phase 0 - Setup and baseline
 
-1. Install the CI pins (`pip install ansible-lint==24.12.2 yamllint==1.35.1 ansible-core==2.16.3`), run `ansible-galaxy install -r requirements.yml`, and install a pinned helm and `gitleaks` 8.30.1. For Molecule, follow the VM setup in [.cursor/rules/cursor-cloud.mdc](../rules/cursor-cloud.mdc). If a tool cannot be installed, mark its checks skipped and make the run report-only.
-2. Run the **Phase 4** commands and record results. Only failures new after your changes count as red.
+1. Install `gitleaks` 8.30.1 and run the **Phase 1** secrets scan on the clean checkout. Then install the CI pins (`python3 -m pip install ansible-lint==24.12.2 yamllint==1.35.1 ansible-core==2.16.3`), run `ansible-galaxy install -r requirements.yml`, and install a pinned helm. For Molecule, follow the VM setup in [.cursor/rules/cursor-cloud.mdc](../rules/cursor-cloud.mdc); if the Docker SDK is older than the daemon's minimum API, set `DOCKER_API_VERSION` to that minimum. If a tool cannot be installed, mark its checks skipped and make the run report-only.
+2. Run every **Phase 4** command and record results. Only failures new after your changes count as red.
 
 ### Phase 1 - Discover
 
@@ -93,14 +93,13 @@ Only replacement edits: never change triggers, permissions, secrets, the Molecul
 
    | Signal                  | Detection                                                                                                                       |
    | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-   | Secrets                 | `gitleaks detect --redact --source=.`; `git ls-files -ci --exclude-standard`                                                    |
+   | Secrets                 | On the clean checkout: `gitleaks detect --no-git --redact --source=.` (tree) and `--log-opts="--since=<YYYY-MM-DD>"` (new commits); `git ls-files -ci --exclude-standard` |
    | Unused defaults         | Each `defaults/main.yml` key vs `rg` over `tasks/`, `handlers/`, `templates/`, `helm/`, `tests/molecule/` (report only)         |
    | README drift            | README variable tables (name and default) vs `defaults/main.yml`                                                                |
    | Dead task files         | Files under `tasks/` not reached from `tasks/main.yml`, after resolving the `setup_mode` include                                |
    | Dead handlers           | Handler names with no `notify` or `listen` match                                                                                |
    | Dead templates          | `templates/*` with no `template` task reference; `helm/templates/*` no `values.yaml` toggle can enable (report only)            |
    | Unused Helm values      | `helm/values.yaml` keys no template reads (report only)                                                                         |
-   | Render drift            | `tests/fixtures/k8s-rendered-values.yaml` vs what `templates/k8s-values.yaml.j2` renders for the k8s scenario                   |
    | Stale lint suppressions | Remove each `.ansible-lint-ignore` line, rerun `ansible-lint`, restore it if the violation returns                              |
    | Dependency drift        | Collections in `requirements.yml` vs `meta/runtime.yml`; `ansible-role-systemd` pin vs its latest tag (report)                  |
    | Platform drift          | `meta/main.yml` platforms vs Molecule scenario images                                                                           |
@@ -108,7 +107,7 @@ Only replacement edits: never change triggers, permissions, secrets, the Molecul
 
 ### Phase 2 - Secrets
 
-Remove the value or untrack the file and add a `.gitignore` pattern. Report the file and secret type only and state it **must be rotated**. Never rewrite history, never paste a secret anywhere.
+Remove the value or untrack the file and add a `.gitignore` pattern. Report the file and secret type only and state it **must be rotated**; only confirmed secrets go in the rotate table, and hits in history before the diff window are a count under **Open issues**. Never rewrite history, never paste a secret anywhere.
 
 ### Phase 3 - Clean
 
@@ -128,12 +127,12 @@ Before opening a PR: no new failures versus baseline, no public variable, chart 
 
 ### Phase 5 - Report and persist
 
-If you changed anything, open one PR against `main` whose description is the report below; its `## Source Janitor Run` heading identifies janitor PRs (Cursor names automation branches `cursor/<slug>-<hash>`, so never rely on branch names). If an open PR already starts with that heading, push to its branch instead. If every finding is Class E, leave the report in the run output and open no PR.
+If you changed anything, open one PR against `main` whose description is the report below; its `## Source Janitor Run` heading identifies janitor PRs (Cursor names automation branches `cursor/<slug>-<hash>`, so never rely on branch names). If an open PR already starts with that heading, push to its branch instead. If every finding is Class E, leave the report in the run output and open no PR. Write `None` under any empty heading. Ignored outputs your own runs create (`.ansible/`, `__pycache__/`) are not findings.
 
 ```markdown
 ## Source Janitor Run - {date}
 
-- {N} scanned | {N} deleted | {N} lint suppressions removed | {N} flagged
+- {N} files in scope (diff window; all tracked files on a full audit) | {N} deleted | {N} lint suppressions removed | {N} flagged
 
 ### Secrets (rotate)
 
@@ -160,7 +159,7 @@ Update Memories: last run date and mode, removals, recurring drift, unresolved C
 
 ## Rules
 
-**Priority when time-boxed:** secrets -> scripts in CI (`helm-validate.sh`) -> stale lint suppressions -> dead task files, handlers, role templates -> README drift -> render and dependency drift (report) -> unused defaults, chart values, Helm templates (report).
+**Priority when time-boxed:** secrets -> scripts in CI (`helm-validate.sh`) -> stale lint suppressions -> dead task files, handlers, role templates -> README drift -> dependency and platform drift (report) -> unused defaults, chart values, Helm templates (report).
 
 Constraints: public variables and chart behavior stay, and when in doubt Class E; minimal diffs; revert on red and never disable scenarios or lint rules to pass; a new `.ansible-lint-ignore` line in a PR is flagged in favour of fixing the violation; no AI attribution; conventional commits (`chore: drop unused uninstall handler`, `ci: replace helm-validate.sh with setup-helm`); comments in touched code stay at one line, two at most; never claim a check passed without running it.
 
