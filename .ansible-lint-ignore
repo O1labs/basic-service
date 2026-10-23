@@ -1,6 +1,1 @@
-# This file contains ignores rule violations for ansible-lint
-meta/main.yml schema[meta]
-tasks/common/download-binary.yml jinja[spacing]
-tasks/systemd/setup.yml var-naming[no-role-prefix]
-tasks/k8s/setup.yml no-changed-when
-tasks/k8s/setup.yml command-instead-of-module
+# No ansible-lint suppressions are currently required.
