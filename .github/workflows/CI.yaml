@@ -19,10 +19,17 @@ jobs:
           yamllint --config-file ./tests/yaml-lint.yml .
           ansible-lint --config-file ./tests/ansible-lint.yml .
 
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.0
+
       - name: Validate Helm chart
         run: |
-          chmod +x ./tests/helm-validate.sh
-          ./tests/helm-validate.sh
+          helm lint helm
+          helm template basic-service-ci helm -f helm/values.yaml >/dev/null
+          helm template basic-service-ci helm -f helm/values-test.yaml >/dev/null
+          helm template basic-service-ci helm -f tests/fixtures/k8s-rendered-values.yaml >/dev/null
   molecule:
     strategy:
       fail-fast: false
