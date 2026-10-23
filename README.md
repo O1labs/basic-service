@@ -21,7 +21,7 @@ Configure and operate a basic cloud-native service: running anything from web3 b
 | :-------------: | :--------------------------------------------------------: | :--------------: |
 |   _setup_mode_   |  infrastructure provisioning setup mode (`container, k8s, systemd, install`)  |   `undefined`    |
 |     _name_      |                 name of service to deploy                  |    **required**    |
-|     _command_     |             Command and arguments to execute on startup              |    **required**    |
+|     _command_     | optional command and arguments to execute on startup; container/k8s images use their own CMD when unset, and systemd defaults to `name` |    `null`    |
 |     _user_     |             service user to setup              |    `<operating-user>`    |
 |     _group_     |             service group to setup              |    `<operating-user>`    |
 |    _config_     |  configuration files associated with the service to mount  |       `{}`       |
@@ -39,10 +39,10 @@ Configure and operate a basic cloud-native service: running anything from web3 b
 
 |       var       |                        description                         |     default      |
 | :-------------: | :--------------------------------------------------------: | :--------------: |
-|     _image_     |             service container image to deploy              |    ` `    |
-|     _network_mode_     |             container network to attach ([more info](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_container_module.html#parameter-network_mode)); ports are not published for `host`, `none` or `container:<name>`              |    `bridge `    |
+|     _image_     |             service container image to deploy              |    `null`    |
+|     _network_mode_     |             container network to attach ([more info](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_container_module.html#parameter-network_mode)); ports are not published for `host`, `none` or `container:<name>`              |    `bridge`    |
 |     _capabilities_     |             Linux capabilities to add, e.g. `NET_ADMIN`, `NET_RAW`              |    `[]`    |
-|     _binary_url_     |             URL of the binary file or archive to download and bind-mount into the container              |    ` `    |
+|     _binary_url_     |             URL of the binary file or archive to download and bind-mount into the container              |    `null`    |
 |     _binary_file_name_override_     |             Override the binary file name after moving it to the destination directory              |    ` `    |
 |    _binary_strip_components_     | Strip NUMBER leading components/directories from file names on extraction | `0` |
 |     _destination_directory_     |             host directory where the binary file will be placed after downloading/extracting              |    `/usr/local/bin`    |
@@ -52,7 +52,7 @@ Configure and operate a basic cloud-native service: running anything from web3 b
 
 |       var       |                        description                         |     default      |
 | :-------------: | :--------------------------------------------------------: | :--------------: |
-|     _binary_url_     |             URL of the binary file to download              |    ` `    |
+|     _binary_url_     |             URL of the binary file to download              |    `null`    |
 |     _binary_file_name_override_     |             Override the binary file name after moving it to the destination directory              |    ` `    |
 |    _binary_strip_components_     | Strip NUMBER leading components/directories from file names on extraction | `0` |
 |     _destination_directory_     |             directory where the binary file will be placed after downloading/extracting              |    `/usr/local/bin`    |
