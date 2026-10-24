@@ -53,4 +53,4 @@ Constraints: minimal diffs; trust `defaults/main.yml` and `helm/values.yaml` ove
 
 ## Automation Settings
 
-Managed by Terraform in `O1-infrastructure/cursor`; edit this file, not the dashboard. Weekly, Wednesday 15:00 UTC. Model `gpt-5.5-high`. Tools: Memories and opening pull requests.
+Managed by Terraform in `O1-infrastructure/cursor`; edit this file, not the dashboard. Weekly, Wednesday 15:00 UTC. Tools: Memories and opening pull requests.
