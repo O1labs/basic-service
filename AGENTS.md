@@ -4,6 +4,7 @@ Agent guidance for the `basic_service` Ansible role lives in `.cursor/rules/curs
 
 ```bash
 yamllint --config-file ./tests/yaml-lint.yml .
+ansible-lint --config-file ./tests/ansible-lint.yml .
 helm lint helm
 helm template basic-service-ci helm -f helm/values.yaml >/dev/null
 helm template basic-service-ci helm -f helm/values-test.yaml >/dev/null
