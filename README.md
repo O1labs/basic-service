@@ -21,7 +21,7 @@ Configure and operate a basic cloud-native service: running anything from web3 b
 | :-------------: | :--------------------------------------------------------: | :--------------: |
 |   _setup_mode_   |  infrastructure provisioning setup mode (`container, k8s, systemd, install`)  |   `undefined`    |
 |     _name_      |                 name of service to deploy                  |    **required**    |
-|     _command_     |             Command and arguments to execute on startup              |    **required**    |
+|     _command_     |             Command and arguments to execute on startup (omit in `container`/`k8s` to use the image ENTRYPOINT/CMD)              |    ` `    |
 |     _user_     |             service user to setup              |    `<operating-user>`    |
 |     _group_     |             service group to setup              |    `<operating-user>`    |
 |    _config_     |  configuration files associated with the service to mount  |       `{}`       |
@@ -40,7 +40,7 @@ Configure and operate a basic cloud-native service: running anything from web3 b
 |       var       |                        description                         |     default      |
 | :-------------: | :--------------------------------------------------------: | :--------------: |
 |     _image_     |             service container image to deploy              |    ` `    |
-|     _network_mode_     |             container network to attach ([more info](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_container_module.html#parameter-network_mode)); ports are not published for `host`, `none` or `container:<name>`              |    `bridge `    |
+|     _network_mode_     |             container network to attach ([more info](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_container_module.html#parameter-network_mode)); ports are not published for `host`, `none` or `container:<name>`              |    `bridge`    |
 |     _capabilities_     |             Linux capabilities to add, e.g. `NET_ADMIN`, `NET_RAW`              |    `[]`    |
 |     _binary_url_     |             URL of the binary file or archive to download and bind-mount into the container              |    ` `    |
 |     _binary_file_name_override_     |             Override the binary file name after moving it to the destination directory              |    ` `    |
@@ -73,6 +73,7 @@ export KUBE_CONTEXT=<context-within-the-kubeconfig-to-use>
 |     _helm_chart_path_     |             path to Helm chart to use for the service deployment/release              |    `helm` (resolved relative to the role)    |
 |     _helm_namespace_      |  Kubernetes namespace to deploy to (also rendered into chart values)   |      `default`       |
 |    _helm_values_path_     | optional Helm values overlay file merged after rendered role values |       `""`       |
+| _helm_rendered_values_path_ | destination path for values rendered from role vars | `/tmp/<name>-helm-values.yaml` |
 | _helm_render_values_from_role_ | map common role vars (`image`, `config`, `ports`, `cpus`, `memory`, etc.) into Helm values | `true` |
 | _helm_create_namespace_ | create the target namespace during Helm install | `true` |
 | _k8s_chart_create_namespace_ | render `createNamespace` into bundled chart values | `false` |
