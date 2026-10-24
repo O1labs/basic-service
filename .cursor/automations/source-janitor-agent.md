@@ -170,4 +170,4 @@ Constraints: public variables and chart behavior stay, and when in doubt Class E
 
 ## Automation Settings
 
-"basic-service Source Janitor", managed by Terraform in `O1-infrastructure/cursor`; edit this file, not the dashboard. Weekly, Monday 16:30 UTC; no PR trigger yet (the Trigger Guard covers one). Model `gpt-5.5-high`. Tools: Memories and opening pull requests.
+"basic-service Source Janitor", managed by Terraform in `O1-infrastructure/cursor`; edit this file, not the dashboard. Weekly, Monday 16:30 UTC; no PR trigger yet (the Trigger Guard covers one). Tools: Memories and opening pull requests.
