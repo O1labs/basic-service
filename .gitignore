@@ -1,6 +1,10 @@
 # Local Ansible/Galaxy cache
 .ansible/
 
+# Molecule / test caches
+.molecule/
+.cache/
+
 # Ignore Python bytecode and cache directories
 __pycache__/
 *.py[cod]
@@ -9,3 +13,9 @@ tests/molecule/config/pytestdebug.log
 
 # Ignore any nested __pycache__ directories
 **/__pycache__/
+
+# Chart packages and scratch files
+*.tgz
+*.bak
+*.orig
+*.retry
