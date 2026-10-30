@@ -8,8 +8,14 @@
 - name: Set binary file name and paths for [{{ binary_url }}]
   ansible.builtin.set_fact:
     binary_file_name: "{{ binary_url | basename }}"
-    binary_file_path: "/tmp/{{ binary_url | basename }}"
-    target_binary_path: "{{ destination_directory }}/{{ binary_file_name_override | default(binary_url | basename) }}"
+    binary_file_path: "{{ ['/tmp', binary_url | basename] | path_join }}"
+    target_binary_path: >-
+      {{
+        [
+          destination_directory,
+          binary_file_name_override | default('', true) | default(binary_url | basename, true)
+        ] | path_join
+      }}
 
 - name: Download the binary file from [{{ binary_url }}] to [{{ binary_file_path }}]
   ansible.builtin.get_url:
@@ -28,12 +34,21 @@
           - "--strip-components={{ binary_strip_components }}"
       when: binary_file_name is regex('\.(tar|tar\.gz|tgz|zip)$')
 
-    - name: Move binary file [{{ binary_file_name }}] to [{{ target_binary_path }}]
-      ansible.builtin.command: >
-        mv {{ binary_file_path }} {{ target_binary_path }}
-      register: mv_output
-      changed_when: mv_output.rc == 0
+    - name: Copy binary file [{{ binary_file_name }}] to [{{ target_binary_path }}]
+      ansible.builtin.copy:
+        src: "{{ binary_file_path }}"
+        dest: "{{ target_binary_path }}"
+        remote_src: true
+        mode: "0755"
       when: binary_file_name is not regex('\.(tar|tar\.gz|tgz|zip)$')
+
+    - name: Remove staged binary file [{{ binary_file_path }}]
+      ansible.builtin.file:
+        path: "{{ binary_file_path }}"
+        state: absent
+      when:
+        - binary_file_name is not regex('\.(tar|tar\.gz|tgz|zip)$')
+        - binary_file_path != target_binary_path
 
 - name: Check if the binary override file [{{ binary_file_name_override | default('', true) }}] exists at [{{ destination_directory }}]
   ansible.builtin.stat:
