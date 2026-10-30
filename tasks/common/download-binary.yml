@@ -6,16 +6,13 @@
     mode: "0755"
 
 - name: Set binary file name and paths for [{{ binary_url }}]
+  vars:
+    _binary_name: >-
+      {{ binary_file_name_override | default('', true) | default(binary_url | basename, true) }}
   ansible.builtin.set_fact:
     binary_file_name: "{{ binary_url | basename }}"
-    binary_file_path: "{{ ['/tmp', binary_url | basename] | path_join }}"
-    target_binary_path: >-
-      {{
-        [
-          destination_directory,
-          binary_file_name_override | default('', true) | default(binary_url | basename, true)
-        ] | path_join
-      }}
+    binary_file_path: "/tmp/{{ binary_url | basename }}"
+    target_binary_path: "{{ [destination_directory, _binary_name] | path_join }}"
 
 - name: Download the binary file from [{{ binary_url }}] to [{{ binary_file_path }}]
   ansible.builtin.get_url:
