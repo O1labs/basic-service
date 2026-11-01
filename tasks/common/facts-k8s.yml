@@ -15,8 +15,8 @@
     _k8s_cpu_millicores: "{{ (cpus | float * 1000) | int }}"
     _k8s_memory: >-
       {{ memory
-         | regex_replace('(?i)^([0-9.]+)M$', '\\1Mi')
-         | regex_replace('(?i)^([0-9.]+)[Gg]$', '\\1Gi') }}
+         | regex_replace('(?i)^([0-9.]+)M$', '\1Mi')
+         | regex_replace('(?i)^([0-9.]+)[Gg]$', '\1Gi') }}
   when:
     - cpus is defined
     - memory is defined
