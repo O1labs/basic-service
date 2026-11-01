@@ -5,26 +5,23 @@
     state: directory
     mode: "0755"
 
-- name: Set binary file name and paths for [{{ binary_url }}]
+- name: Set binary paths for [{{ binary_url }}]
   vars:
+    _basename: "{{ binary_url | basename }}"
     _binary_name: >-
-      {{ binary_file_name_override | default('', true) | default(binary_url | basename, true) }}
-    _binary_file_name: >-
-      {{ binary_url | basename }}
-    _binary_is_archive: >-
-      {{ (binary_url | basename) is regex('\.(tar|tar\.gz|tgz|zip)$') }}
+      {{ binary_file_name_override | default('', true) | default(_basename, true) }}
   ansible.builtin.set_fact:
-    binary_file_name: "{{ _binary_file_name }}"
-    binary_file_path: "/tmp/{{ _binary_file_name }}"
+    binary_file_path: "/tmp/{{ _basename }}"
     target_binary_path: "{{ [destination_directory, _binary_name] | path_join }}"
-    binary_is_archive: "{{ _binary_is_archive }}"
+    binary_is_archive: >-
+      {{ _basename is regex('\.(tar|tar\.gz|tgz|zip)$') }}
 
 - name: Download the binary file to [{{ target_binary_path }}]
   ansible.builtin.get_url:
     url: "{{ binary_url }}"
     dest: "{{ target_binary_path }}"
     mode: "0755"
-  when: not binary_is_archive | bool
+  when: not (binary_is_archive | bool)
 
 - name: Download archive to [{{ binary_file_path }}]
   ansible.builtin.get_url:
