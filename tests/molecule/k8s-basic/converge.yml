@@ -11,11 +11,11 @@
         image: nginx:1.27-alpine
         helm_namespace: molecule-k8s
         helm_create_namespace: true
-        k8s_common_name: test-k8s-service.local
         ports:
           web:
             ingressPort: 80
             servicePort: 80
         cpus: 0.25
         memory: 128M
+        k8s_service_type: ClusterIP
         k8s_health_check_path: /

@@ -92,26 +92,39 @@ systemd: {}
 systemd_environment_directive: ""
 
 ### Kubernetes ###
+# Helm release
 helm_chart_path: helm
 helm_namespace: default
-helm_values_path: ""
-helm_render_values_from_role: true
-# helm_rendered_values_path: /tmp/<name>-helm-values.yaml
 helm_create_namespace: true
-k8s_chart_create_namespace: false
 helm_wait: true
 helm_atomic: true
 helm_timeout: 10m
-k8s_common_name: ""
-k8s_cluster_name: default-cluster
+
+# Helm values
+helm_render_values_from_role: true
+helm_values_path: ""
+# helm_rendered_values_path: /tmp/<name>-helm-values.yaml
+
+# Workload
+k8s_deploy_stateful_set: false
 k8s_min_replicas: 1
 k8s_max_replicas: 1
 k8s_hpa_enabled: false
 k8s_hpa_target_cpu: 50
-k8s_deploy_stateful_set: false
-k8s_ingress_enabled: false
-k8s_service_monitor_enabled: false
 k8s_health_check_path: /
+
+# Service
+k8s_service_type: ClusterIP
+
+# Ingress
+k8s_ingress_enabled: false
+k8s_ingress_class: nginx
+k8s_ingress_host: ""
+
+# Observability
+k8s_service_monitor_enabled: false
 k8s_service_monitor_path: /metrics
+
+# Metadata
 k8s_labels: {}
 k8s_annotations: {}

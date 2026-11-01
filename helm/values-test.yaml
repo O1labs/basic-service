@@ -1,7 +1,6 @@
 id: 1
 name: foo-service-{{.Values.id}}
 environment: t-foo
-clusterName: t-foo-test-eks-cluster
 commonName: foo-service-{{.Values.id}}.t-foo-test
 namespace: foo
 createNamespace: true

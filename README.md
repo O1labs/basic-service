@@ -70,33 +70,67 @@ export KUBECONFIG=<path-to-the-kubeconfig-file>
 export KUBE_CONTEXT=<context-within-the-kubeconfig-to-use>
 ```
 
-|       var       |                        description                         |     default      |
-| :-------------: | :--------------------------------------------------------: | :--------------: |
-|     _helm_chart_path_     |             path to Helm chart to use for the service deployment/release              |    `helm` (resolved relative to the role)    |
-|     _helm_namespace_      |  Kubernetes namespace to deploy to (also rendered into chart values)   |      `default`       |
-|    _helm_values_path_     | optional Helm values overlay file merged after rendered role values |       `""`       |
-| _helm_rendered_values_path_ | destination path for values rendered from role vars | `/tmp/<name>-helm-values.yaml` |
-| _helm_render_values_from_role_ | map common role vars (`image`, `config`, `ports`, `cpus`, `memory`, etc.) into Helm values | `true` |
-| _helm_create_namespace_ | create the target namespace during Helm install | `true` |
-| _k8s_chart_create_namespace_ | render `createNamespace` into bundled chart values | `false` |
-| _helm_wait_ | wait for Helm resources to become ready | `true` |
-| _helm_atomic_ | roll back failed Helm installs/upgrades | `true` |
-| _helm_timeout_ | timeout for Helm operations | `10m` |
-| _k8s_common_name_ | rendered chart common name; defaults to the service name | `""` |
-| _k8s_cluster_name_ | rendered chart cluster name | `default-cluster` |
-| _k8s_min_replicas_ | rendered chart minimum replica count | `1` |
-| _k8s_max_replicas_ | rendered chart maximum replica count | `1` |
-| _k8s_hpa_enabled_ | enable the rendered chart HPA | `false` |
-| _k8s_hpa_target_cpu_ | target CPU utilization percentage for the rendered chart HPA | `50` |
-| _k8s_deploy_stateful_set_ | render the chart as a StatefulSet instead of a Deployment | `false` |
-| _k8s_ingress_enabled_ | enable rendered chart ingress values | `false` |
-| _k8s_service_monitor_enabled_ | enable rendered chart ServiceMonitor values | `false` |
-| _k8s_health_check_path_ | HTTP path for generated liveness/readiness probes | `/` |
-| _k8s_service_monitor_path_ | metrics path for the rendered ServiceMonitor | `/metrics` |
-| _k8s_labels_ | extra labels rendered into chart values | `{}` |
-| _k8s_annotations_ | extra annotations rendered into chart values | `{}` |
+With `setup_mode: k8s` the role renders Helm values from the same variables used by the `container`, `systemd`, and `install` modes, then deploys the bundled chart. Set `helm_render_values_from_role: false` to deploy with `helm_values_path` alone.
 
-With `setup_mode: k8s`, the role renders Helm values from the same variables used by `container`, `systemd`, and `install` modes, then deploys the bundled chart. Set `helm_render_values_from_role: false` to use only `helm_values_path`.
+#### Helm release
+
+| var | description | default |
+| :--- | :--- | :--- |
+| `helm_chart_path` | Path to the Helm chart used for the release (relative paths resolve against the role) | `helm` |
+| `helm_namespace` | Namespace to deploy into; also rendered into the chart values | `default` |
+| `helm_create_namespace` | Create the target namespace during the Helm install | `true` |
+| `helm_wait` | Wait for chart resources to become ready | `true` |
+| `helm_atomic` | Roll back failed installs and upgrades | `true` |
+| `helm_timeout` | Timeout for Helm operations | `10m` |
+
+#### Helm values
+
+| var | description | default |
+| :--- | :--- | :--- |
+| `helm_render_values_from_role` | Map shared role vars (`image`, `config`, `ports`, `cpus`, `memory`, …) into chart values | `true` |
+| `helm_values_path` | Optional values overlay merged after the rendered values (relative paths resolve against the role) | `""` |
+| `helm_rendered_values_path` | Destination for values rendered from role vars | `/tmp/<name>-helm-values.yaml` |
+
+#### Workload
+
+| var | description | default |
+| :--- | :--- | :--- |
+| `k8s_deploy_stateful_set` | Render a StatefulSet instead of a Deployment | `false` |
+| `k8s_min_replicas` | Minimum replica count | `1` |
+| `k8s_max_replicas` | Maximum replica count | `1` |
+| `k8s_hpa_enabled` | Enable the chart HPA | `false` |
+| `k8s_hpa_target_cpu` | HPA target CPU utilization percentage | `50` |
+| `k8s_health_check_path` | HTTP path for the generated liveness/readiness probes | `/` |
+
+#### Service
+
+| var | description | default |
+| :--- | :--- | :--- |
+| `k8s_service_type` | Service type | `ClusterIP` |
+
+#### Ingress
+
+| var | description | default |
+| :--- | :--- | :--- |
+| `k8s_ingress_enabled` | Enable the chart ingress | `false` |
+| `k8s_ingress_class` | Ingress class name | `nginx` |
+| `k8s_ingress_host` | Ingress hostname; defaults to the service name | `""` |
+
+#### Observability
+
+| var | description | default |
+| :--- | :--- | :--- |
+| `k8s_service_monitor_enabled` | Enable the chart ServiceMonitor (requires the Prometheus Operator CRDs) | `false` |
+| `k8s_service_monitor_path` | Metrics path for the ServiceMonitor | `/metrics` |
+
+#### Metadata
+
+| var | description | default |
+| :--- | :--- | :--- |
+| `k8s_labels` | Extra labels added to the rendered resources | `{}` |
+| `k8s_annotations` | Extra annotations added to the workload | `{}` |
+
+Container `command`/`args` and resource requests/limits are derived from the role's `command`, `args`, `cpus`, and `memory` variables, so they are not configured separately.
 
 ## Containerized Apps
 - [O1 Containers](https://github.com/O1labs/containers)
