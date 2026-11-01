@@ -6,7 +6,7 @@ galaxy_info:
   description: Ansible role for running any software process/service
   company: O1.IO
   license: MIT
-  min_ansible_version: "2.14"
+  min_ansible_version: "2.15.0"
   platforms:
     - name: Debian
       versions:
