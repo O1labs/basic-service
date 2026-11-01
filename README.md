@@ -104,7 +104,7 @@ With `setup_mode: k8s` the role renders Helm values from the same variables used
 
 > **Note**
 >
-> These are derived from existing role variables, not configured under `k8s_*`:
+> The following are derived from existing role variables, not configured under `k8s_*`:
 >
 > - Container `command` and `args` — from `command` and `args`
 > - CPU and memory requests/limits — from `cpus` and `memory`
