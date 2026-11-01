@@ -11,7 +11,6 @@ Defaults below match `helm/values.yaml`. Keys used by templates but omitted from
 | Name                  | Description                                                                                    |                             Type                              | Default | Required |
 | --------------------- | ---------------------------------------------------------------------------------------------- | :-----------------------------------------------------------: | :-----: | :------: |
 | name                  | The service name                                                                               |                           `string`                            | `foo-service` |   yes    |
-| clusterName           | Name of Kubernetes cluster to deploy to                                                        |                           `string`                            | `foo-cluster` |   yes    |
 | namespace             | Namespace within Kubernetes cluster to deploy                                                  |                           `string`                            |  `foo`  |   yes    |
 | createNamespace       | Whether to create the cluster namespace if it does not exist                                   |                            `bool`                             | `true`  |    no    |
 | image                 | Container image of service release                                                             |                           `string`                            | `nginx:1.27` |   yes    |

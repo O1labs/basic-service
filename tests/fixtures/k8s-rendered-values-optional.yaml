@@ -1,0 +1,27 @@
+---
+name: fixture-optional
+commonName: fixture-optional.local
+namespace: fixture
+createNamespace: false
+image: nginx:1.27
+minReplicas: 2
+maxReplicas: 4
+serviceType: NodePort
+servicePort: 8080
+serviceTargetPort: 80
+deployStatefulSet: false
+hpa:
+  enabled: true
+  targetCPUUtilizationPercentage: 65
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: fixture-optional.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+labels:
+  app.kubernetes.io/part-of: fixture-suite
+annotations:
+  fixture.example.com/managed-by: ansible

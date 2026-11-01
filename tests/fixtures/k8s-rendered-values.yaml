@@ -2,8 +2,7 @@
 name: fixture-service
 commonName: fixture-service.local
 namespace: fixture
-clusterName: fixture-cluster
-createNamespace: true
+createNamespace: false
 image: nginx:1.27
 command: ["/bin/sh", "-c"]
 args: ["nginx -g 'daemon off;'"]

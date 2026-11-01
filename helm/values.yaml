@@ -1,7 +1,6 @@
 name: foo-service
 commonName: foo-service.foo
 namespace: foo
-clusterName: foo-cluster
 image: nginx:1.27
 command: []
 args: []

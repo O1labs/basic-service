@@ -1,9 +1,7 @@
 # Ansible-rendered Helm values for {{ name }}
 name: {{ name }}
-commonName: {{ k8s_common_name | default(name) }}
 namespace: {{ helm_namespace }}
-clusterName: {{ k8s_cluster_name | default('default-cluster') }}
-createNamespace: {{ k8s_chart_create_namespace | default(false) | bool }}
+createNamespace: false
 
 image: {{ image | default('') | to_json }}
 {% if k8s_command is defined and k8s_command | length > 0 %}
@@ -81,7 +79,7 @@ ingress:
   enabled: true
   className: {{ k8s_ingress_class | default('nginx') }}
   hosts:
-    - host: {{ k8s_ingress_host | default(k8s_common_name | default(name)) }}
+    - host: {{ k8s_ingress_host | default(name) }}
       paths:
         - path: /
           pathType: Prefix
