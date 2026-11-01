@@ -1,5 +1,5 @@
 ---
-- name: Ensure destination directory [{{ destination_directory }}] exists
+- name: Ensure destination directory exists [{{ destination_directory }}]
   ansible.builtin.file:
     path: "{{ destination_directory }}"
     state: directory
@@ -9,45 +9,40 @@
   vars:
     _binary_name: >-
       {{ binary_file_name_override | default('', true) | default(binary_url | basename, true) }}
+    _binary_file_name: >-
+      {{ binary_url | basename }}
+    _binary_is_archive: >-
+      {{ (binary_url | basename) is regex('\.(tar|tar\.gz|tgz|zip)$') }}
   ansible.builtin.set_fact:
-    binary_file_name: "{{ binary_url | basename }}"
-    binary_file_path: "/tmp/{{ binary_url | basename }}"
+    binary_file_name: "{{ _binary_file_name }}"
+    binary_file_path: "/tmp/{{ _binary_file_name }}"
     target_binary_path: "{{ [destination_directory, _binary_name] | path_join }}"
+    binary_is_archive: "{{ _binary_is_archive }}"
 
-- name: Download the binary file from [{{ binary_url }}] to [{{ binary_file_path }}]
+- name: Download the binary file to [{{ target_binary_path }}]
+  ansible.builtin.get_url:
+    url: "{{ binary_url }}"
+    dest: "{{ target_binary_path }}"
+    mode: "0755"
+  when: not binary_is_archive | bool
+
+- name: Download archive to [{{ binary_file_path }}]
   ansible.builtin.get_url:
     url: "{{ binary_url }}"
     dest: "{{ binary_file_path }}"
     mode: "0755"
+  when: binary_is_archive | bool
 
-- name: Handle binary file [{{ binary_file_name }}] based on type
-  block:
-    - name: Extract archive [{{ binary_file_name }}] to [{{ destination_directory }}]
-      ansible.builtin.unarchive:
-        src: "{{ binary_file_path }}"
-        dest: "{{ destination_directory }}"
-        remote_src: true
-        extra_opts:
-          - "--strip-components={{ binary_strip_components }}"
-      when: binary_file_name is regex('\.(tar|tar\.gz|tgz|zip)$')
+- name: Extract archive into [{{ destination_directory }}]
+  ansible.builtin.unarchive:
+    src: "{{ binary_file_path }}"
+    dest: "{{ destination_directory }}"
+    remote_src: true
+    extra_opts:
+      - "--strip-components={{ binary_strip_components }}"
+  when: binary_is_archive | bool
 
-    - name: Copy binary file [{{ binary_file_name }}] to [{{ target_binary_path }}]
-      ansible.builtin.copy:
-        src: "{{ binary_file_path }}"
-        dest: "{{ target_binary_path }}"
-        remote_src: true
-        mode: "0755"
-      when: binary_file_name is not regex('\.(tar|tar\.gz|tgz|zip)$')
-
-    - name: Remove staged binary file [{{ binary_file_path }}]
-      ansible.builtin.file:
-        path: "{{ binary_file_path }}"
-        state: absent
-      when:
-        - binary_file_name is not regex('\.(tar|tar\.gz|tgz|zip)$')
-        - binary_file_path != target_binary_path
-
-- name: Check if the binary override file [{{ binary_file_name_override | default('', true) }}] exists at [{{ destination_directory }}]
+- name: Check if the binary override file exists at [{{ destination_directory }}]
   ansible.builtin.stat:
     path: "{{ destination_directory }}/{{ binary_file_name_override }}"
   register: binary_override_file_stat
@@ -55,7 +50,7 @@
     - binary_file_name_override | default('', true) | length > 0
     - binary_url | default('', true) | length > 0
 
-- name: Fail if override binary file [{{ binary_file_name_override }}] is missing at [{{ destination_directory }}]
+- name: Fail if override binary file is missing at [{{ destination_directory }}]
   ansible.builtin.fail:
     msg: "The binary file does not exist at {{ destination_directory }}/{{ binary_file_name_override }}."
   when:
