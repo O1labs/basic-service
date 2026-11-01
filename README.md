@@ -102,7 +102,13 @@ With `setup_mode: k8s` the role renders Helm values from the same variables used
 | `k8s_labels` | Extra labels added to the rendered resources | `{}` |
 | `k8s_annotations` | Extra annotations added to the workload | `{}` |
 
-Container `command`/`args` and resource requests/limits are derived from the role's `command`, `args`, `cpus`, and `memory` variables, so they are not configured separately.
+> **Note**
+>
+> These are derived from existing role variables, not configured under `k8s_*`:
+>
+> - Container `command` and `args` — from `command` and `args`
+> - CPU and memory requests/limits — from `cpus` and `memory`
+> - Liveness and readiness probes — from the first entry in `ports` and `k8s_health_check_path`
 
 ## Containerized Apps
 - [O1 Containers](https://github.com/O1labs/containers)
