@@ -1,5 +1,5 @@
 ---
-- name: Allow service ingress ports {{ _ingress_list }} in iptables setup
+- name: Allow service ingress ports in iptables setup {{ _ingress_list }}
   ansible.builtin.iptables:
     chain: INPUT
     protocol: tcp

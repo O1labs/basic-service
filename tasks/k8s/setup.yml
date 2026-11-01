@@ -21,14 +21,22 @@
     - ansible_os_family == 'Darwin'
     - helm_version.rc != 0
 
-- name: Install Helm via script on other systems
-  ansible.builtin.command: |
-    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+- name: Download the Helm install script on other systems
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    dest: /tmp/get-helm-3
+    mode: "0755"
   when:
     - ansible_os_family not in ['Debian', 'RedHat', 'Darwin']
     - helm_version.rc != 0
+
+- name: Install Helm via script on other systems
+  ansible.builtin.command: /tmp/get-helm-3
   args:
     creates: /usr/local/bin/helm
+  when:
+    - ansible_os_family not in ['Debian', 'RedHat', 'Darwin']
+    - helm_version.rc != 0
 
 - name: Render Helm values from role variables
   ansible.builtin.include_tasks: render-values.yml

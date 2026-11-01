@@ -13,7 +13,10 @@
 - name: Derive Kubernetes CPU and memory resources
   ansible.builtin.set_fact:
     _k8s_cpu_millicores: "{{ (cpus | float * 1000) | int }}"
-    _k8s_memory: "{{ memory | regex_replace('(?i)^([0-9.]+)M$', '\\1Mi') | regex_replace('(?i)^([0-9.]+)G$', '\\1Gi') | regex_replace('(?i)^([0-9.]+)g$', '\\1Gi') }}"
+    _k8s_memory: >-
+      {{ memory
+         | regex_replace('(?i)^([0-9.]+)M$', '\\1Mi')
+         | regex_replace('(?i)^([0-9.]+)[Gg]$', '\\1Gi') }}
   when:
     - cpus is defined
     - memory is defined
