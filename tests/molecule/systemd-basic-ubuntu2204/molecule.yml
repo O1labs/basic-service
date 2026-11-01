@@ -1,0 +1,40 @@
+---
+dependency:
+  name: galaxy
+  options:
+    role_file: molecule/requirements.yml
+    roles_path: "../../"
+driver:
+  name: docker
+platforms:
+  - name: instance
+    image: geerlingguy/docker-ubuntu2204-ansible:latest
+    pre_build_image: true
+    privileged: true
+    override_command: false
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ../prepare.yml
+  env:
+    ANSIBLE_ROLES_PATH: "../../../../"
+    ANSIBLE_ALLOW_BROKEN_CONDITIONALS: "True"
+verifier:
+  name: testinfra
+  directory: ./tests
+scenario:
+  name: systemd-basic-ubuntu2204
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - cleanup
+    - destroy

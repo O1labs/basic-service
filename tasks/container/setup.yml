@@ -4,20 +4,23 @@
   when: binary_url | default('', true) | length > 0
 
 - name: Start service container
-  community.docker.docker_container: >-
-    {{
-      {
-        'name': name,
-        'image': image,
-        'user': 'root',
-        'env': config_env,
-        'network_mode': network_mode,
-        'volumes': _volume_list,
-        'cpus': cpus,
-        'memory': memory,
-        'restart_policy': restart_policy,
-      }
-      | combine({'command': command} if command | default('', true) | length > 0 else {})
-      | combine({} if network_mode in ['host', 'none'] or network_mode is match('container:') else {'published_ports': _port_list})
-      | combine({'capabilities': capabilities} if capabilities | length > 0 else {})
-    }}
+  vars:
+    _container_command: "{{ command if command | default('', true) | length > 0 else omit }}"
+    _container_ports: >-
+      {{ _port_list
+         if network_mode not in ['host', 'none'] and network_mode is not match('container:')
+         else omit }}
+    _container_capabilities: "{{ capabilities if capabilities | length > 0 else omit }}"
+  community.docker.docker_container:
+    name: "{{ name }}"
+    image: "{{ image }}"
+    user: root
+    env: "{{ config_env }}"
+    network_mode: "{{ network_mode }}"
+    volumes: "{{ _volume_list }}"
+    cpus: "{{ cpus }}"
+    memory: "{{ memory }}"
+    restart_policy: "{{ restart_policy }}"
+    command: "{{ _container_command }}"
+    published_ports: "{{ _container_ports }}"
+    capabilities: "{{ _container_capabilities }}"

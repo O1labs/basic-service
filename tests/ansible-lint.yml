@@ -1,10 +1,9 @@
 ---
 # see for details: https://docs.ansible.com/ansible-lint/index.html
 exclude_paths:
-  - ../.git/
-  - ../.github
-  - ../helm/
-  - ./*
+  - .git/
+  - .github/
+  - helm/
 warn_list:
   - experimental
   # Galaxy FQN is 0x0i.basic_service; meta cannot declare that namespace

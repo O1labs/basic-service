@@ -13,6 +13,8 @@ Configure and operate a basic cloud-native service: running anything from web3 b
 
 `Systemd`, installation of the `docker` engine or a `Kubernetes` cluster.
 
+The Helm chart requires Kubernetes 1.19 or later (`kubeVersion: ">=1.19.0-0"`), which is the first release serving the stable `networking.k8s.io/v1` Ingress API.
+
 ## Role Variables
 
 ### Common
