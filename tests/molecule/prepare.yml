@@ -20,7 +20,11 @@
       until: apt_install.rc == 0
 
     - name: Install python dependencies
-      raw: pip3 install --break-system-packages --ignore-installed PyYAML pytest-testinfra molecule-docker
+      # --break-system-packages only exists from pip 23.0, so older images
+      # (Ubuntu 22.04 ships pip 22.0.2) must fall back to plain pip.
+      raw: >-
+        pip3 install --ignore-installed PyYAML pytest-testinfra molecule-docker
+        $([ "$(pip3 --version | sed -E 's/^pip ([0-9]+).*/\1/')" -ge 23 ] && echo --break-system-packages)
       register: pip_install
       retries: 5
       delay: 3

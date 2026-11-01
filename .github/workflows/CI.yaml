@@ -41,6 +41,9 @@ jobs:
       matrix:
         scenario:
           - systemd-basic
+          - systemd-basic-debian11
+          - systemd-basic-debian12
+          - systemd-basic-ubuntu2204
           - systemd-full
           - systemd-uninstall
           - container-basic
