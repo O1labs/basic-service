@@ -47,6 +47,7 @@ jobs:
           - systemd-basic-ubuntu2204
           - systemd-full
           - systemd-uninstall
+          - systemd-unit-path
           - container-basic
           - container-binary
           - container-binary-service
