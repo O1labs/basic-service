@@ -3,6 +3,16 @@
   ansible.builtin.include_tasks: ../common/download-binary.yml
   when: binary_url | default('', true) | length > 0
 
+- name: Record the pre-existing unit definition
+  ansible.builtin.stat:
+    path: "{{ _systemd_unit_dir }}/{{ _systemd_unit_name }}"
+    get_checksum: true
+  register: _systemd_unit_pre
+
+- name: Prune stale systemd drop-ins
+  ansible.builtin.include_tasks: prune-dropins.yml
+  when: systemd.prune_dropins | default(true) | bool
+
 - name: Start service systemd unit
   ansible.builtin.include_role:
     name: ansible-role-systemd
@@ -11,6 +21,29 @@
       - name: "{{ name }}"
         state: started
         enabled: true
+        path: "{{ _systemd_unit_dir }}"
         Unit: "{{ _default_unit_info | combine(_custom_unit_properties) }}"
         Service: "{{ _default_unit_service | combine(_custom_service_properties) }}"
         Install: "{{ _default_unit_install | combine(_custom_install_properties) }}"
+
+- name: Record the rendered unit definition
+  ansible.builtin.stat:
+    path: "{{ _systemd_unit_dir }}/{{ _systemd_unit_name }}"
+    get_checksum: true
+  register: _systemd_unit_post
+
+# The upstream role reloads only when the unit template changes, and activates
+# with `state: started`, which does not restart an already-running unit. A
+# redeploy that changes CPUQuota/MemoryHigh/Restart would otherwise never reach
+# the running process.
+- name: Reload and restart after a unit or drop-in change
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ _systemd_unit_name }}"
+    daemon_reload: true
+    state: restarted
+    enabled: true
+  when: >-
+    (_systemd_dropin_prune | default({}, true)).changed | default(false)
+    or _systemd_unit_pre.stat.exists | default(false)
+    and _systemd_unit_pre.stat.checksum != _systemd_unit_post.stat.checksum

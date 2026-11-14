@@ -11,6 +11,9 @@
 
 - name: Set default Systemd unit configurations
   ansible.builtin.set_fact:
+    _systemd_unit_dir: "{{ systemd.unit_path | default('/etc/systemd/system') }}"
+    _systemd_unit_name: "{{ name }}.service"
+    _systemd_dropin_dir: "{{ systemd.unit_path | default('/etc/systemd/system') }}/{{ name }}.service.d"
     _default_unit_info:
       Wants: network-online.target
       After: syslog.target network-online.target

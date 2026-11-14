@@ -61,6 +61,11 @@ The Helm chart requires Kubernetes 1.19 or later (`kubeVersion: ">=1.19.0-0"`), 
 |   _systemd_   |    custom service type & unit, service and install properties    |     `{}`      |
 |   _systemd.enable_accounting_   |    enable systemd resource accounting (CPU, Memory, IO, Tasks, IP)    |     `true`      |
 | _systemd_environment_directive_ | additional raw values for the systemd `Environment` directive | `""` |
+|   _systemd.unit_path_   |    systemd unit directory used for rendering, drop-in pruning and uninstall    |     `/etc/systemd/system`      |
+|   _systemd.prune_dropins_   |    remove `*.conf` drop-ins under `<name>.service.d` that the role did not write, then reload and restart    |     `true`      |
+|   _systemd.keep_dropins_   |    drop-in file names preserved across redeploys, e.g. `[operator.conf]`    |     `[]`      |
+
+A redeploy overwrites `<unit_path>/<name>.service`, but systemd keeps applying drop-ins left in `<name>.service.d/`, so a stale `CPUQuota`, `MemoryHigh` or `Restart` would outlive the catalog. With `prune_dropins`, the role deletes every `*.conf` drop-in it did not write, then reloads and restarts so the new values reach the running process. Drop-ins added on purpose must be listed in `keep_dropins`; the keep list does not survive uninstall.
 
 ### Kubernetes (k8s)
 

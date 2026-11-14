@@ -42,3 +42,9 @@ def test_temporary_binary_file_removed(host):
     """Verify the temporary binary file has been removed."""
     temp_binary = host.file("/tmp/prometheus-2.47.0.linux-amd64.tar.gz")
     assert not temp_binary.exists, "The temporary binary file still exists."
+
+
+def test_systemd_dropin_directory_removed(host):
+    """Verify uninstall removes the whole drop-in directory (O1#527)."""
+    dropin_dir = host.file("/etc/systemd/system/sample-service.service.d")
+    assert not dropin_dir.exists, "The systemd drop-in directory still exists."

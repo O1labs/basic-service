@@ -111,3 +111,57 @@ def test_config_file_ownership(host):
     assert config_file.exists, "The Prometheus configuration file does not exist."
     assert config_file.user == "prometheus", "The config file is not owned by prometheus."
     assert config_file.group == "prometheus", "The config file group is not prometheus."
+
+def test_stale_dropin_removed(host):
+    """Verify O1#527: a redeploy prunes drop-ins the role did not write."""
+    stale = host.file("/etc/systemd/system/test-service.service.d/cpu.conf")
+    assert not stale.exists, "The stale drop-in was not pruned on redeploy."
+
+
+def test_symlinked_dropin_removed(host):
+    """Verify a symlinked stale drop-in is pruned; systemd follows these."""
+    linked = host.file("/etc/systemd/system/test-service.service.d/linked.conf")
+    assert not linked.exists, "The symlinked stale drop-in was not pruned."
+
+
+def test_keep_listed_dropin_preserved(host):
+    """Verify a drop-in named in systemd.keep_dropins survives a redeploy."""
+    operator = host.file("/etc/systemd/system/test-service.service.d/operator.conf")
+    assert operator.exists, "The keep-listed drop-in was removed."
+
+
+def test_pruned_dropin_does_not_override_catalog_values(host):
+    """Verify the effective unit matches the catalog, not the seeded drop-in.
+
+    The seeded drop-in set CPUQuota=400% and Restart=always; the role asks for
+    50% and on-failure, so these would fail if the drop-in survived.
+    """
+    quota = host.run("systemctl show test-service -p CPUQuotaPerSecUSec --value")
+    assert quota.rc == 0, f"Could not read CPUQuota: {quota.stderr}"
+    assert quota.stdout.strip() == "500ms", (
+        f"Effective CPUQuota is {quota.stdout.strip()!r}, expected 500ms (50%); "
+        "a stale drop-in is still overriding the unit."
+    )
+
+    restart = host.run("systemctl show test-service -p Restart --value")
+    assert restart.rc == 0, f"Could not read Restart: {restart.stderr}"
+    assert restart.stdout.strip() == "on-failure", (
+        f"Effective Restart is {restart.stdout.strip()!r}, expected on-failure."
+    )
+
+    # The symlinked drop-in set MemoryMax=9G; the role renders no MemoryMax.
+    mem_max = host.run("systemctl show test-service -p MemoryMax --value")
+    assert mem_max.rc == 0, f"Could not read MemoryMax: {mem_max.stderr}"
+    assert mem_max.stdout.strip() == "infinity", (
+        f"Effective MemoryMax is {mem_max.stdout.strip()!r}; the symlinked "
+        "drop-in is still overriding the unit."
+    )
+
+
+def test_keep_listed_dropin_still_applies(host):
+    """Verify the preserved drop-in is actually loaded by systemd."""
+    nice = host.run("systemctl show test-service -p Nice --value")
+    assert nice.rc == 0, f"Could not read Nice: {nice.stderr}"
+    assert nice.stdout.strip() == "5", (
+        f"Effective Nice is {nice.stdout.strip()!r}, expected 5 from operator.conf."
+    )

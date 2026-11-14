@@ -1,7 +1,65 @@
 ---
+# Seed drop-ins before the role runs: a stale one that must be pruned (O1#527)
+# and an operator-added one that must survive because it is keep-listed.
 - name: Converge
   hosts: all
   become: true
+  pre_tasks:
+    - name: Create the systemd drop-in directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/test-service.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Seed a stale drop-in that overrides catalog values
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/test-service.service.d/cpu.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Service]
+          CPUQuota=400%
+          Restart=always
+
+    - name: Seed an operator-added drop-in that must be preserved
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/test-service.service.d/operator.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Service]
+          Nice=5
+
+    # systemd follows symlinked drop-ins, so a symlinked stale override must be
+    # pruned like a regular file.
+    - name: Seed a symlinked stale drop-in
+      block:
+        - name: Write the symlink target
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/test-service-linked.conf
+            owner: root
+            group: root
+            mode: "0644"
+            content: |
+              [Service]
+              MemoryMax=9G
+
+        - name: Point a drop-in symlink at the target
+          ansible.builtin.file:
+            src: /etc/systemd/system/test-service-linked.conf
+            dest: /etc/systemd/system/test-service.service.d/linked.conf
+            state: link
+            force: true
+
+        - name: Assert the drop-in is a symlink before converge
+          ansible.builtin.stat:
+            path: /etc/systemd/system/test-service.service.d/linked.conf
+          register: seeded_link
+          failed_when: not seeded_link.stat.islnk
   roles:
     - role: basic-service
       vars:
@@ -42,3 +100,5 @@
             servicePort: 9090
         systemd:
           enable_accounting: true
+          keep_dropins:
+            - operator.conf
