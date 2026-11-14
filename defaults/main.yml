@@ -87,6 +87,9 @@ systemd: {}
 # unit_properties: {}
 # service_properties: {}
 # install_properties: {}
+# unit_path: /etc/systemd/system  (unit dir for render, prune and uninstall)
+# prune_dropins: true   (delete *.conf drop-ins this role did not write)
+# keep_dropins: []      (drop-in names to preserve, e.g. [operator.conf])
 # enable_accounting: true
 
 systemd_environment_directive: ""

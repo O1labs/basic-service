@@ -1,0 +1,34 @@
+---
+- name: Assert the drop-in target is scoped to this service
+  ansible.builtin.assert:
+    that:
+      - name | length > 0
+      - "'/' not in name"
+      - _systemd_unit_dir.startswith('/')
+    fail_msg: >-
+      Refusing to manage drop-ins for '{{ name }}' under
+      '{{ _systemd_unit_dir }}'. Set a non-empty service name without path
+      separators and an absolute systemd.unit_path.
+
+# file_type=any so symlinked drop-ins are pruned too: systemd follows them, so
+# a symlinked stale override would keep winning. find returns [] for a missing
+# path, so no existence guard is needed. Directories named *.conf are skipped.
+- name: Locate systemd drop-ins
+  ansible.builtin.find:
+    paths: "{{ _systemd_dropin_dir }}"
+    patterns: "*.conf"
+    file_type: any
+  register: _systemd_dropin_files
+
+- name: Remove systemd drop-ins this role does not manage
+  become: true
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ _systemd_dropin_files.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when:
+    - not item.isdir
+    - item.path | basename not in (systemd.keep_dropins | default([]))
+  register: _systemd_dropin_prune

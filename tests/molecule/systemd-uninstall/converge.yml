@@ -1,5 +1,8 @@
 ---
-- name: Converge
+# Three plays: install the service, seed a drop-in that the role did not write,
+# then uninstall. This gives teardown a drop-in to clean up, which the previous
+# single-play scenario could not express.
+- name: Install
   hosts: all
   become: true
   roles:
@@ -35,6 +38,33 @@
             hostPath: /var/tmp/prometheus
             appPath: /var/tmp/prometheus
         restart_policy: on-failure
+
+- name: Seed a drop-in that uninstall must remove
+  hosts: all
+  become: true
+  tasks:
+    - name: Create the drop-in directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/sample-service.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Seed a stale drop-in
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/sample-service.service.d/stale.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Service]
+          CPUQuota=400%
+
+- name: Uninstall
+  hosts: all
+  become: true
+  roles:
     - role: basic-service
       vars:
         uninstall: true

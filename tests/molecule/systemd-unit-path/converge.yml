@@ -1,0 +1,86 @@
+---
+# Exercises systemd.unit_path end to end: render, drop-in prune and uninstall
+# must all use the configured directory rather than the /etc default.
+# /run/systemd/system is a real systemd search path, so a unit written there is
+# loaded from it, which makes the running-service assertions meaningful.
+# The install state is asserted in post_tasks because the verifier runs once,
+# after the whole playbook has finished (here: after uninstall).
+- name: Install and verify at a non-default unit path
+  hosts: all
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Create the drop-in directory at the configured unit path
+      ansible.builtin.file:
+        path: /run/systemd/system/probe-service.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Seed a stale drop-in at the configured unit path
+      ansible.builtin.copy:
+        dest: /run/systemd/system/probe-service.service.d/stale.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Service]
+          CPUQuota=400%
+  roles:
+    - role: basic-service
+      vars:
+        uninstall: false
+        setup_mode: systemd
+        name: probe-service
+        user: root
+        command: /bin/sleep 600
+        cpus: 50
+        memory: 256M
+        restart_policy: on-failure
+        systemd:
+          unit_path: /run/systemd/system
+  post_tasks:
+    - name: Record the rendered unit and drop-in directory
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: probe_paths
+      loop:
+        - /run/systemd/system/probe-service.service
+        - /run/systemd/system/probe-service.service.d/stale.conf
+        - /etc/systemd/system/probe-service.service
+
+    - name: Record the effective unit properties
+      ansible.builtin.command:
+        cmd: systemctl show probe-service -p CPUQuotaPerSecUSec,Restart,ActiveState
+      register: probe_props
+      changed_when: false
+
+    - name: Assert the unit was rendered at the configured path and prune ran
+      ansible.builtin.assert:
+        that:
+          - probe_paths.results[0].stat.exists
+          - not probe_paths.results[1].stat.exists
+          - not probe_paths.results[2].stat.exists
+          - "'ActiveState=active' in probe_props.stdout"
+          - "'CPUQuotaPerSecUSec=500ms' in probe_props.stdout"
+          - "'Restart=on-failure' in probe_props.stdout"
+        fail_msg: >-
+          unit_path was not honoured: {{ probe_props.stdout }}
+
+- name: Uninstall at the configured unit path
+  hosts: all
+  become: true
+  roles:
+    - role: basic-service
+      vars:
+        uninstall: true
+        setup_mode: systemd
+        name: probe-service
+        user: root
+        command: /bin/sleep 600
+        cpus: 50
+        memory: 256M
+        restart_policy: on-failure
+        systemd:
+          unit_path: /run/systemd/system

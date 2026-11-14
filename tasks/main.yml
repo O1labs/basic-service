@@ -18,7 +18,23 @@
           - name: "{{ name }}"
             state: stopped
             enabled: false
+            path: "{{ _systemd_unit_dir }}"
         perform_uninstall: true
+      when: setup_mode == 'systemd'
+
+    # Teardown removes drop-ins unconditionally: leaving <name>.service.d/
+    # behind would point overrides at a unit that no longer exists.
+    - name: Remove systemd drop-in directory
+      become: true
+      ansible.builtin.file:
+        path: "{{ _systemd_dropin_dir }}"
+        state: absent
+      when: setup_mode == 'systemd'
+
+    - name: Reload systemd after removing unit and drop-ins
+      become: true
+      ansible.builtin.systemd:
+        daemon_reload: true
       when: setup_mode == 'systemd'
 
     - name: Flush handlers to ensure uninstall is completed
