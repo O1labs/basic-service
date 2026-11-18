@@ -111,9 +111,9 @@ With `setup_mode: k8s` the role renders Helm values from the same variables used
 >
 > The following are derived from existing role variables, not configured under `k8s_*`:
 >
-> - Container `command` and `args` — from `command` and `args`
+> - Container `command` and `args` — from `command` and optional `args`
 > - CPU and memory requests/limits — from `cpus` and `memory`
-> - Liveness and readiness probes — from the first entry in `ports` and `k8s_health_check_path`
+> - Liveness and readiness probes — from the first entry in `ports` and `k8s_health_check_path`, or optional `k8s_liveness_probe` / `k8s_readiness_probe` overrides
 
 ## Containerized Apps
 - [O1 Containers](https://github.com/O1labs/containers)
