@@ -9,5 +9,6 @@ helm lint helm
 helm template basic-service-ci helm -f helm/values.yaml >/dev/null
 helm template basic-service-ci helm -f helm/values-test.yaml >/dev/null
 helm template basic-service-ci helm -f tests/fixtures/k8s-rendered-values.yaml >/dev/null
+helm template basic-service-ci helm -f tests/fixtures/k8s-rendered-values-optional.yaml >/dev/null
 cd tests && molecule test -s container-basic
 ```
