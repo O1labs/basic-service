@@ -62,6 +62,7 @@ Defaults below match `helm/values.yaml`. Keys used by templates but omitted from
 | hpa.targetMemoryUtilizationPercentage | Optional memory utilization target for autoscaling v2                              |                             `int`                             |         |    no    |
 | hpa.metrics           | Additional HPA metric specs                                                                    |                             `list`                            |  `[]`   |    no    |
 | targetCPUUtilizationPercentage | Deprecated: use `hpa.targetCPUUtilizationPercentage` instead                          |                             `int`                             |  `50`   |    no    |
+| targetMemoryUtilizationPercentage | Deprecated: use `hpa.targetMemoryUtilizationPercentage` instead                    |                             `int`                             |         |    no    |
 | livenessProbe         | Container liveness probe definition                                                          |                            `dict`                             |  `{}`   |    no    |
 | readinessProbe        | Container readiness probe definition                                                         |                            `dict`                             |  `{}`   |    no    |
 | startupProbe          | Container startup probe definition                                                           |                            `dict`                             |  `{}`   |    no    |
